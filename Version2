@@ -23,9 +23,9 @@ if not getgenv().Aimbot then
 end
 
 local Window = Rayfield:CreateWindow({
-    Name = "MENU GAB MINI",
-    LoadingTitle = "GA MENU",
-    LoadingSubtitle = "GAB",
+    Name = "Mini Hub",
+    LoadingTitle = "Mini Hub",
+    LoadingSubtitle = "By equipe Hub",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "AimbotConfig",
