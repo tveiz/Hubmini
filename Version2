@@ -149,7 +149,7 @@ end
 
 
 local VisualTab = Window:CreateTab("Visual")
-local Paragraph = VisualTab:CreateParagraph({Title = "GAB MENU", Content = "FEITO POR ELE MSM GAB"})
+local Paragraph = VisualTab:CreateParagraph({Title = "Mini Hub", Content = "by equipe Hub"})
 -- FunÃ§Ã£o para carregar o script
 local function loadScript()
    local Players = game:GetService("Players")
@@ -484,7 +484,7 @@ VisualTab:CreateToggle({
 
 
 local TeleportTab = Window:CreateTab("Teleports")
-local Paragraph = TeleportTab:CreateParagraph({Title = "GAB MENU", Content = "feito por GAB"})
+local Paragraph = TeleportTab:CreateParagraph({Title = "Mini Hub", Content = "feito por equipe Hub"})
 
 
 local Section = TeleportTab:CreateSection("TELEPORTS")
@@ -520,7 +520,7 @@ addTeleportButton("Teleport predio 1", CFrame.new(-1595.23328, 204.074341, 555.8
 addTeleportButton("Teleport Devs Mini City", CFrame.new(2555.44263, 303.167755, -1004.13763, -0.422592998, 0, 0.906319618, 0, 1, 0, -0.906319618, 0, -0.422592998))
 
 local rev = Window:CreateTab("Revistar")
-local Paragraph = rev:CreateParagraph({Title = "gab menu", Content = "feito por gab"})
+local Paragraph = rev:CreateParagraph({Title = "Mini Hub", Content = "feito por Th e equipe"})
 local Section = rev:CreateSection("SE QUISER SIM")
 local Button = rev:CreateButton({
    Name = "AUTO ROUBAR",
@@ -654,7 +654,7 @@ local Paragraph = rev:CreateParagraph({Title = "Como usar?", Content = "Ensinamo
 
 
 local otoTab = Window:CreateTab("Outros")
-local Paragraph = otoTab:CreateParagraph({Title = "MENU GAB", Content = "FEITO POR ELE MSM GAB"})
+local Paragraph = otoTab:CreateParagraph({Title = "Mini Hub", Content = "FEITO POR TH E EQUIPE"})
 local Toggle = otoTab:CreateToggle({
     Name = "ANTI BARATA",
     CurrentValue = false,
