@@ -1,803 +1,861 @@
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/Aimbot-V2/main/Resources/Scripts/Raw%20Main.lua"))()
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-if not getgenv().Aimbot then
-    getgenv().Aimbot = {
-        Settings = {
-            Enabled = false, -- Valor padrÃ£o
-            AliveCheck = false,
-            TeamCheck = false,
-            Sensitivity = 0,
-            LockPart = "Head",
-            SaveSettings = true,
-            TriggerKey = "MouseButton2"
-        },
-        FOVSettings = {
-            Enabled = false,
-            Color = "255, 255, 255",
-            Amount = 90
-        }
-    }
-end
 
 local Window = Rayfield:CreateWindow({
-    Name = "Mini Hub",
-    LoadingTitle = "Mini Hub",
-    LoadingSubtitle = "By equipe Hub",
+    Name = "Mini Hub pago 😈",
+    LoadingInfo = {
+        Developer = "Th",
+        Creator = "Th",
+        Discord = "https://discord.gg/XAnFXPUR",
+        LoadingTip = "Carregando...",
+    },
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "AimbotConfig",
-        FileName = "Settings.json"
-    },
-    Discord = {
-        Enabled = false,
-        Invite = "noinvite",
-        RememberJoins = true
+        FolderName = "Mini Hub",
+        FileName = "Config"
     }
 })
 
+local Tab = Window:CreateTab("Principal", 4483362458)
+local MiniHubTab = Window:CreateTab("Mini Hub Free", 4483362459)
+local TeleportTab = Window:CreateTab("Teleportos")
+local ConfigTab = Window:CreateTab("Configurações", 4483362458) -- Added Config Tab
 
-local Tab = Window:CreateTab("Aimbot-PC") -- Icon ID (optional)
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local webhookURL = "https://discord.com/api/webhooks/1351282679420817492/KpPuA0jULdUAkBxqdGel7Uv4yYOvs1HX2cvYxL_PY09_EwFkStfMEvfNVTCZoRzCHQMM"
+local sendWebhookEnabled = true
 
-local Section11 = Tab:CreateSection("aim config")
--- Toggle para habilitar/desabilitar o Aimbot
-Tab:CreateToggle({
-    Name = "ativar aimbot",
-    CurrentValue = getgenv().Aimbot.Settings.Enabled == true, -- Garante que seja true ou false
-    Flag = "AimbotEnabled",
-    Callback = function(Value)
-        getgenv().Aimbot.Settings.Enabled = Value
-    end,
-})
-
--- Toggle para checar se o jogador estÃ¡ vivo
-Tab:CreateToggle({
-    Name = "vivo check",
-    CurrentValue = getgenv().Aimbot.Settings.AliveCheck == true, -- Garante que seja true ou false
-    Flag = "AliveCheck",
-    Callback = function(Value)
-        getgenv().Aimbot.Settings.AliveCheck = Value
-    end,
-})
-
--- Toggle para checar se o jogador estÃ¡ na mesma equipe
-Tab:CreateToggle({
-    Name = "team check",
-    CurrentValue = getgenv().Aimbot.Settings.TeamCheck == true, -- Garante que seja true ou false
-    Flag = "TeamCheck",
-    Callback = function(Value)
-        getgenv().Aimbot.Settings.TeamCheck = Value
-    end,
-})
-
--- Slider para ajustar a sensibilidade do Aimbot
-Tab:CreateSlider({
-    Name = "aimbot",
-    Range = {0, 1},
-    Increment = 0.1,
-    Suffix = "s",
-    CurrentValue = getgenv().Aimbot.Settings.Sensitivity or 0, -- Valor padrÃ£o caso seja nil
-    Flag = "Sensitivity",
-    Callback = function(Value)
-        getgenv().Aimbot.Settings.Sensitivity = Value
-    end,
-})
-
-local Section = Tab:CreateSection("fov config")
--- Toggle para habilitar/desabilitar o FOV
-Tab:CreateToggle({
-    Name = "ativar fov",
-    CurrentValue = getgenv().Aimbot.FOVSettings.Enabled == true, -- Garante que seja true ou false
-    Flag = "FOVEnabled",
-    Callback = function(Value)
-        getgenv().Aimbot.FOVSettings.Enabled = Value
-    end,
-})
-
--- Slider para ajustar o tamanho do FOV
-Tab:CreateSlider({
-    Name = "tamanho fov",
-    Range = {0, 360},
-    Increment = 1,
-    Suffix = "Â°",
-    CurrentValue = getgenv().Aimbot.FOVSettings.Amount or 90, -- Valor padrÃ£o caso seja nil
-    Flag = "FOVSize",
-    Callback = function(Value)
-        getgenv().Aimbot.FOVSettings.Amount = Value
-    end,
-})
-
--- Button para salvar as configuraÃ§Ãµes
-Tab:CreateButton({
-    Name = "save config",
-    Callback = function()
-        getgenv().Aimbot.Settings.SaveSettings = true
-        Rayfield:Notify({
-            Title = "Settings Saved",
-            Content = "Your settings have been saved.",
-            Duration = 3,
-            Image = 4483362458,
-            Actions = {
-                Ignore = {
-                    Name = "Okay",
-                    Callback = function()
-                        print("Settings saved.")
-                    end
-                },
-            },
-        })
-    end,
-})
-local localPlayer = Players.LocalPlayer
-local teamName = "STAFF" -- Nome do time a ser verificado
-
-local checkActive = false -- VariÃ¡vel para ativar/desativar a verificaÃ§Ã£o
-
--- FunÃ§Ã£o para verificar jogadores na equipe "STAFF"
-local function checkStaffTeam()
-    if not checkActive then return end -- Se o toggle estiver desligado, nÃ£o faz nada
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Team and player.Team.Name == teamName then
-            localPlayer:Kick("VocÃª foi kickado porque hÃ¡ um jogador na equipe STAFF.")
-            return
-        end
+local function getDeviceType()
+    if UserInputService.TouchEnabled then
+        return "Celular/Tablet"
+    elseif UserInputService.KeyboardEnabled then
+        return "PC"
+    else
+        return "Desconhecido"
     end
 end
 
-
-local VisualTab = Window:CreateTab("Visual")
-local Paragraph = VisualTab:CreateParagraph({Title = "Mini Hub", Content = "by equipe Hub"})
--- FunÃ§Ã£o para carregar o script
-local function loadScript()
-   local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-
-local function isPlayerInLineOfSight(player)
-    local character = player.Character
-    if not character then return false end
-
-    local head = character:FindFirstChild("Head")
-    if not head then return false end
-
-    local ray = Workspace:Raycast(LocalPlayer.Character.HumanoidRootPart.Position, head.Position - LocalPlayer.Character.HumanoidRootPart.Position)
-    return ray == nil or ray.Instance:IsDescendantOf(LocalPlayer.Character)
+local function sendWebhook()
+    local data = {
+        ["username"] = "LOGS execução",
+        ["avatar_url"] = "https://i.imgur.com/CF7wYq5.png",
+        ["content"] = "Nova execução da Mini Menu\nNome: " .. Player.Name .. "\nUserId: " .. Player.UserId .. "\nHorário: " .. os.date("%d/%m/%Y %H:%M:%S") .. "\nDispositivo: " .. getDeviceType()
+    }
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    local body = { Url = webhookURL, Body = jsonData, Method = "POST", Headers = { ["Content-Type"] = "application/json" } }
+    if syn and syn.request then
+        syn.request(body)
+    elseif request then
+        request(body)
+    elseif http and http.request then
+        http.request(body)
+    else
+        warn("Seu script não suporta requisições HTTP!")
+    end
 end
 
-local function hasRequiredItems(player)
-    local inventoryItems = {}
-    local backpack = player:FindFirstChild("Backpack")
-    if backpack then
-        for _, item in ipairs(backpack:GetChildren()) do
-            if item:IsA("Tool") then
-                table.insert(inventoryItems, item.Name)
-            end
-        end
-    end
+-- Remove Key System
 
-    if inventoryItems[1] == "1" and inventoryItems[2] == "2" and inventoryItems[3] == "3" then
-        return false
-    end
+sendWebhook() -- Envia o webhook ao iniciar o script.
 
-    return inventoryItems[1] ~= nil or inventoryItems[2] ~= nil or inventoryItems[3] ~= nil
+print("Script principal iniciado...")
+
+
+local AimbotSection = Tab:CreateSection("Aimbot (PC)")
+
+local plrs = game:GetService("Players")
+local lockaim = true
+local lockangle = 5
+local aimkey = "MouseButton2"
+local lplr = game:GetService("Players").LocalPlayer
+local cam = game.Workspace.CurrentCamera
+local mouse = lplr:GetMouse()
+local aimatpart = nil
+local aimbotEnabled = false
+
+function checkfov(part)
+    local fov = getfovxyz(game.Workspace.CurrentCamera.CFrame, part.CFrame)
+    local angle = math.abs(fov.X) + math.abs(fov.Y)
+    return angle
 end
 
-local function createUIForPlayer(player)
-    if player == LocalPlayer then return end
+function aimat(part)
+    cam.CFrame = CFrame.new(cam.CFrame.p, part.CFrame.p)
+end
 
-    local function addBillboard()
-        local character = player.Character
-        if not character then return end
+function getfovxyz(p0, p1, deg)
+    local x1, y1, z1 = p0:ToOrientation()
+    local cf = CFrame.new(p0.p, p1.p)
+    local x2, y2, z2 = cf:ToOrientation()
+    if deg then
+        return Vector3.new(math.deg(x1 - x2), math.deg(y1 - y2), math.deg(z1 - z2))
+    else
+        return Vector3.new((x1 - x2), (y1 - y2), (z1 - z2))
+    end
+end
 
-        local head = character:FindFirstChild("Head")
-        if not head then return end
-
-        if head:FindFirstChild("PlayerUI") then return end
-
-        if not isPlayerInLineOfSight(player) or not hasRequiredItems(player) then
-            return
-        end
-
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "PlayerUI"
-        billboard.Adornee = head
-        billboard.Size = UDim2.new(0, 160, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, -3, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Parent = head
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        frame.BorderSizePixel = 0
-        frame.Parent = billboard
-        frame.Style = Enum.FrameStyle.DropShadow
-
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 0.35, 0)
-        nameLabel.Position = UDim2.new(0, 0, 0.02, 0)
-        nameLabel.Text = player.Name
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.TextSize = 14
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.TextStrokeTransparency = 0.8
-        nameLabel.Parent = frame
-
-        local function getInventoryItems()
-            local inventoryItems = {}
-            local backpack = player:FindFirstChild("Backpack")
-            if backpack then
-                for _, item in ipairs(backpack:GetChildren()) do
-                    if item:IsA("Tool") then
-                        table.insert(inventoryItems, item.Name)
-                    end
+local function refreshPlayers()
+    for _, plr in pairs(plrs:GetPlayers()) do
+        if plr.Name ~= lplr.Name and plr.Character and plr.Character:FindFirstChild("Head") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
+            plr.Character.Humanoid.Died:Connect(function()
+                if aimatpart and aimatpart.Parent == plr.Character then
+                    aimatpart = nil
                 end
-            end
-            return inventoryItems
-        end
-
-        local inventoryItems = getInventoryItems()
-
-        for i = 1, 3 do
-            local button = Instance.new("TextButton")
-            button.Size = UDim2.new(0.28, -5, 0.4, 0)
-            button.Position = UDim2.new((i - 1) * 0.33, 0, 0.35, 0)
-            button.Text = inventoryItems[i] or tostring(i)
-            button.TextColor3 = Color3.fromRGB(255, 255, 255)
-            button.Font = Enum.Font.SourceSansBold
-            button.TextSize = 12
-            button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-            button.BorderSizePixel = 2
-            button.BorderColor3 = Color3.fromRGB(100, 100, 100)
-            button.Parent = frame
-
-            button.MouseButton1Click:Connect(function()
-                print("BotÃ£o " .. (inventoryItems[i] or i) .. " clicado em " .. player.Name)
             end)
         end
+    end
+end
 
-        local function onItemChanged()
-            if not hasRequiredItems(player) then
-                if head:FindFirstChild("PlayerUI") then
-                    head.PlayerUI:Destroy()
+local aimbotConnection
+
+local function toggleAimbot(enabled)
+    aimbotEnabled = enabled
+    if enabled then
+        aimbotConnection = game:GetService("RunService").RenderStepped:Connect(function()
+            if aimatpart then
+                aimat(aimatpart)
+                if aimatpart.Parent == plrs.LocalPlayer.Character then
+                    aimatpart = nil
                 end
-            else
-                addBillboard()
+            end
+        end)
+
+        mouse.Button2Down:Connect(function()
+            local maxangle = math.rad(20)
+            for _, plr in pairs(plrs:GetPlayers()) do
+                if plr.Name ~= lplr.Name and plr.Character and plr.Character:FindFirstChild("Head") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
+                    local an = checkfov(plr.Character.Head)
+                    if an < maxangle then
+                        maxangle = an
+                        aimatpart = plr.Character.Head
+                    end
+                end
+            end
+        end)
+
+        mouse.Button2Up:Connect(function()
+            aimatpart = nil
+        end)
+
+    else
+        if aimbotConnection then
+            aimbotConnection:Disconnect()
+            aimbotConnection = nil
+        end
+    end
+end
+
+local AimbotToggle = Tab:CreateToggle({
+    Name = "Aimbot",
+    Description = "Ativa/Desativa o Aimbot.",
+    CurrentValue = false,
+    Section = AimbotSection,
+    Callback = function(Value)
+        toggleAimbot(Value)
+    end
+})
+
+-- Nova Função Aimbot (Mobile)
+local function AimAt(Part)
+    local Camera = game.Workspace.CurrentCamera
+    Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
+end
+
+local function CheckFOV(Part)
+    local Camera = game.Workspace.CurrentCamera
+    local FieldOfViewX = Camera.FieldOfView / 2
+    local VectorToTarget = (Part.Position - Camera.CFrame.Position).Unit
+    local AngleToTarget = math.acos(VectorToTarget:Dot(Camera.CFrame.LookVector))
+    return AngleToTarget <= math.rad(FieldOfViewX)
+end
+
+local function FindTarget()
+    local LocalPlayer = game.Players.LocalPlayer
+    local Character = LocalPlayer.Character
+    if not Character or not Character:FindFirstChild("Humanoid") or Character.Humanoid.Health <= 0 then
+        return nil
+    end
+
+    local ClosestTarget = nil
+    local ClosestAngle = math.huge
+
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        if Player ~= LocalPlayer then
+            local Character = Player.Character
+            if Character and Character:FindFirstChild("Humanoid") and Character.Humanoid.Health > 0 and Character:FindFirstChild("Head") then
+                if CheckFOV(Character.Head) then
+                    local Angle = (Character.Head.Position - game.Workspace.CurrentCamera.CFrame.Position).Magnitude
+                    if Angle < ClosestAngle then
+                        ClosestTarget = Character.Head
+                        ClosestAngle = Angle
+                    end
+                end
+            end
+        end
+    end
+    return ClosestTarget
+end
+
+local AimbotMobileSection = Tab:CreateSection("Aimbot (Mobile)")
+
+local AimPart = nil
+
+local function MobileAimbot()
+    local Target = FindTarget()
+    if Target then
+        AimPart = Target
+        AimAt(AimPart)
+    else
+        AimPart = nil
+    end
+end
+
+local MobileAimbotEnable = false
+
+local function ToggleMobileAimbot(state)
+    MobileAimbotEnable = state
+    if MobileAimbotEnable then
+        game:GetService("RunService").RenderStepped:Connect(MobileAimbot)
+        print("Aimbot ativado")
+    else
+        game:GetService("RunService").RenderStepped:Disconnect(MobileAimbot)
+        print("Aimbot desativado")
+    end
+end
+
+Tab:CreateToggle({
+    Name = "Aimbot (Mobile)",
+    Description = "Trava a mira no oponente mais próximo para dispositivos mobile",
+    CurrentValue = false,
+    Section = AimbotMobileSection,
+    Callback = function(Value)
+        ToggleMobileAimbot(Value)
+    end
+})
+
+-- Mini Hub Free Functions
+local function deletarNotifyGui()
+    local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui.Name == "NotifyGui" and gui:IsA("ScreenGui") then
+            gui:Destroy()
+        end
+    end
+end
+
+local function sendRevistarCommand()
+    game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
+end
+
+-- Roubar Inventário
+local function roubarInventario()
+    local itens = {"AK47", "Uzi", "PARAFAL", "Faca", "IA2", "G3", "Escudo", "C4", "AR-15", "Hi Power", "Natalina", "Tratamento", "Planta Limpa", "Planta Suja", "ArmaÃƒÂ§ÃƒÂ£o de Arma", "PeÃƒÂ§a de Arma", "Glock 17", "Skate" }
+    local args = { [1] = "mudaInv", [2] = "2", [4] = "1" }
+
+    while true do
+        deletarNotifyGui()
+        for i, item in ipairs(itens) do
+            if i <= 16 then
+                args[3] = item
+                args[2] = tostring(i)
+                task.spawn(function()
+                    game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("InvRemotes"):WaitForChild("InvRequest"):InvokeServer(unpack(args))
+                end)
+            end
+        end
+        wait(0)
+    end
+end
+
+-- Anti Revistar
+local function ativarAntiRevistar()
+    local player = game.Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+
+    humanoid.HealthChanged:Connect(function(health)
+        if health <= 5 then
+            player:Kick("ANTI SER REVISTADO")
+        end
+    end)
+end
+
+-- ESP
+local ESPAtivo = false
+local function removerESP(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        local head = player.Character.Head
+        local esp = head:FindFirstChild("ESP")
+        if esp then
+            esp:Destroy()
+        end
+    end
+end
+
+local function criarESP(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        if player.Character.Head:FindFirstChild("ESP") then return end
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP"
+        billboard.Adornee = player.Character.Head
+        billboard.AlwaysOnTop = true
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        nameLabel.Position = UDim2.new(0, 0, 0, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.TextScaled = true
+        nameLabel.Text = player.Name
+        nameLabel.Parent = billboard
+
+        local healthLabel = Instance.new("TextLabel")
+        healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+        healthLabel.BackgroundTransparency = 1
+        healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        healthLabel.TextStrokeTransparency = 0.5
+        healthLabel.TextScaled = true
+        healthLabel.Text = "Vida: ..."
+        healthLabel.Parent = billboard
+
+        billboard.Parent = player.Character.Head
+
+        local function atualizarVida()
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                healthLabel.Text = "Vida: " .. math.floor(player.Character.Humanoid.Health)
             end
         end
 
-        local backpack = player:FindFirstChild("Backpack")
-        if backpack then
-            backpack.ChildRemoved:Connect(onItemChanged)
-            backpack.ChildAdded:Connect(onItemChanged)
+        atualizarVida()
+        player.Character:FindFirstChild("Humanoid").HealthChanged:Connect(atualizarVida)
+    end
+end
+
+local function aplicarESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Players.LocalPlayer then
+            if player.Character then criarESP(player) end
+            player.CharacterAdded:Connect(function()
+                wait(1)
+                if ESPAtivo then criarESP(player) end
+            end)
         end
     end
 
-    if player.Character then
-        addBillboard()
-    else
+    Players.PlayerAdded:Connect(function(player)
         player.CharacterAdded:Connect(function()
-            wait(0.5)
-            addBillboard()
+            wait(1)
+            if ESPAtivo then criarESP(player) end
         end)
+    end)
+end
+
+-- Auto Revistar
+local autoRevistarAtivo = false
+local autoRevTask
+
+-- Ver Itens UI
+local verItensUIAtivo = false
+local verItensConexoes = {}
+
+local function adicionarUI(player)
+    if player == Players.LocalPlayer then return end
+    local character = player.Character or player.CharacterAdded:Wait()
+    local head = character:WaitForChild("Head", 3)
+    if not head or head:FindFirstChild("ItemUI") then return end
+
+    local gui = Instance.new("BillboardGui")
+    gui.Name = "ItemUI"
+    gui.Adornee = head
+    gui.Size = UDim2.new(0, 160, 0, 60)
+    gui.StudsOffset = Vector3.new(0, 2.8, 0)
+    gui.AlwaysOnTop = true
+
+    local name = Instance.new("TextLabel")
+    name.Size = UDim2.new(1, 0, 0.3, 0)
+    name.Position = UDim2.new(0, 0, 0, 0)
+    name.BackgroundTransparency = 1
+    name.TextColor3 = Color3.new(1, 1, 1)
+    name.TextStrokeTransparency = 0.5
+    name.Font = Enum.Font.SourceSansBold
+    name.TextScaled = true
+    name.Text = player.Name
+    name.Parent = gui
+
+    local itens = Instance.new("TextLabel")
+    itens.Size = UDim2.new(1, 0, 0.7, 0)
+    itens.Position = UDim2.new(0, 0, 0.3, 0)
+    itens.BackgroundTransparency = 1
+    itens.TextColor3 = Color3.new(1, 1, 1)
+    itens.TextStrokeTransparency = 0.6
+    itens.Font = Enum.Font.SourceSans
+    itens.TextScaled = true
+    itens.TextWrapped = true
+    itens.Text = ""
+    itens.Parent = gui
+
+    local function update()
+        local list = {}
+        if player:FindFirstChild("Backpack") then
+            for _, item in ipairs(player.Backpack:GetChildren()) do
+                table.insert(list, item.Name)
+            end
+        end
+        if player.Character then
+            for _, item in ipairs(player.Character:GetChildren()) do
+                if item:IsA("Tool") then
+                    table.insert(list, item.Name)
+                end
+            end
+        end
+        itens.Text = table.concat(list, ", ")
+    end
+
+    update()
+    table.insert(verItensConexoes, player.Backpack.ChildAdded:Connect(update))
+    table.insert(verItensConexoes, player.Backpack.ChildRemoved:Connect(update))
+    table.insert(verItensConexoes, player.Character.ChildAdded:Connect(update))
+    table.insert(verItensConexoes, player.Character.ChildRemoved:Connect(update))
+
+    gui.Parent = head
+end
+
+local function aplicarVerItensUI()
+    for _, player in pairs(Players:GetPlayers()) do
+        adicionarUI(player)
+    end
+
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function()
+            task.wait(1)
+            if verItensUIAtivo then
+                adicionarUI(player)
+            end
+        end)
+    end)
+end
+
+local function removerVerItensUI()
+    for _, conn in ipairs(verItensConexoes) do
+        pcall(function() conn:Disconnect() end)
+    end
+    verItensConexoes = {}
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("Head") then
+            local ui = player.Character.Head:FindFirstChild("ItemUI")
+            if ui then ui:Destroy() end
+        end
     end
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
-    createUIForPlayer(player)
+-- UI Mobile Revistar
+
+local function criarRevistarUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    local Frame = Instance.new("Frame")
+    local CloseButton = Instance.new("TextButton")
+    local RevistarButton = Instance.new("TextButton")
+    local Title = Instance.new("TextLabel")
+
+    ScreenGui.Name = "RevistarUI"
+    ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    Frame.Size = UDim2.new(0, 300, 0, 150)
+    Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Frame.BorderSizePixel = 0
+    Frame.BackgroundTransparency = 0.1
+    Frame.Active = true
+    Frame.Draggable = true
+
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.Position = UDim2.new(0, 0, 0, 0)
+    Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Title.Text = "Mini Hub"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.SourceSansBold
+    Title.TextSize = 18
+
+    CloseButton.Size = UDim2.new(0, 30, 0, 30)
+    CloseButton.Position = UDim2.new(1, -30, 0, 0)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.Font = Enum.Font.SourceSansBold
+    CloseButton.TextSize = 18
+    CloseButton.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
+    end)
+
+    RevistarButton.Size = UDim2.new(0.8, 0, 0.4, 0)
+    RevistarButton.Position = UDim2.new(0.1, 0, 0.5, -30)
+    RevistarButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+    RevistarButton.Text = "manda revistar"
+    RevistarButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    RevistarButton.Font = Enum.Font.SourceSansBold
+    RevistarButton.TextSize = 20
+    RevistarButton.AutoButtonColor = true
+    RevistarButton.MouseButton1Click:Connect(function()
+        sendRevistarCommand()
+    end)
+
+    Frame.Parent = ScreenGui
+    Title.Parent = Frame
+    CloseButton.Parent = Frame
+    RevistarButton.Parent = Frame
 end
 
-Players.PlayerAdded:Connect(function(player)
-    createUIForPlayer(player)
+-- Criação da aba Mini Hub Free
+local Paragraph = MiniHubTab:CreateParagraph({Title = "MINI HUB ON TOPPP", Content = "Feito por Th"})
+local Section = MiniHubTab:CreateSection("NECESSARIO")
+
+MiniHubTab:CreateButton({
+    Name = "Roubar inv",
+    Callback = function()
+        task.spawn(roubarInventario)
+    end,
+})
+
+MiniHubTab:CreateSection("PC")
+MiniHubTab:CreateToggle({
+    Name = "mandar revistar (TECLA T)",
+    CurrentValue = false,
+    Flag = "rvst",
+    Callback = function(Value)
+        getgenv().Enabled = Value
+    end,
+})
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T and getgenv().Enabled then
+        game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
+    end
 end)
 
-local function updateUI()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then
-            local head = player.Character:FindFirstChild("Head")
-            if head then
-                createUIForPlayer(player)
-            end
+MiniHubTab:CreateSection("MOBILE")
+MiniHubTab:CreateButton({
+    Name = "mandar revistar UI",
+    Callback = function()
+        criarRevistarUI()
+    end,
+})
+
+MiniHubTab:CreateSection("Anti Revistar")
+MiniHubTab:CreateToggle({
+    Name = "Anti ser revistado",
+    CurrentValue = false,
+    Flag = "antirevistar",
+    Callback = function(Value)
+        if Value then
+            ativarAntiRevistar()
         end
-    end
-end
+    end,
+})
 
-while true do
-    wait(5)
-    updateUI()
-end
-end
-local Veritem = VisualTab:CreateButton({
-   Name = "Ver itens UI (irreversivel)",
-   Callback = function()
-    -- Verifica se a UI jÃ¡ foi criada
-        if not createdUI then
-            -- Executa o loadstring para carregar o script
-            loadScript()
-
-            -- Aqui vocÃª pode adicionar o cÃ³digo para criar a UI que o script cria.
-            -- Caso o script jÃ¡ crie a UI, pode ser necessÃ¡rio ajustar isso:
-            createdUI = Instance.new("BillboardGui")
-            createdUI.Name = "PlayerUI"
-            createdUI.Adornee = game.Players.LocalPlayer.Character:FindFirstChild("Head")
-            createdUI.Size = UDim2.new(0, 200, 0, 70)
-            createdUI.StudsOffset = Vector3.new(0, -3, 0)
-            createdUI.AlwaysOnTop = true
-            createdUI.Parent = game.Players.LocalPlayer.Character:FindFirstChild("Head")
+MiniHubTab:CreateSection("ESP")
+MiniHubTab:CreateToggle({
+    Name = "ESP nome/vida",
+    CurrentValue = false,
+    Flag = "esp",
+    Callback = function(Value)
+        ESPAtivo = Value
+        if Value then
+            aplicarESP()
         else
-            -- Se a UI jÃ¡ existe, remove-a
-            removeUI()
-        end
-    end
-})
-
-------------- esp high
-local players = game:GetService("Players")
-
--- ConfiguraÃ§Ã£o do Highlight
-local highlightColor = Color3.new(1, 0, 0) -- Vermelho
-local fillTransparency = 1 -- TransparÃªncia da parte interna (1 = invisÃ­vel)
-local outlineTransparency = 0 -- TransparÃªncia do contorno
-
-
-local highlightInstances = {}
-
-
-local function applyHighlight(character)
-    if character:FindFirstChildOfClass("Highlight") then return end 
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = highlightColor
-    highlight.FillTransparency = fillTransparency
-    highlight.OutlineTransparency = outlineTransparency
-    highlight.OutlineColor = highlightColor
-    highlight.Adornee = character
-    highlight.Parent = character
-    highlightInstances[character] = highlight 
-end
-
-
-local function removeHighlight(character)
-    local highlight = highlightInstances[character]
-    if highlight then
-        highlight:Destroy()
-        highlightInstances[character] = nil 
-    end
-end
-
-
-local function monitorHighlight(Value)
-    for _, player in ipairs(players:GetPlayers()) do
-        if player ~= players.LocalPlayer then
-            local character = player.Character or player.CharacterAdded:Wait()
-            if Value then
-                applyHighlight(character)
-            else
-                removeHighlight(character) 
+            for _, player in pairs(Players:GetPlayers()) do
+                removerESP(player)
             end
         end
+    end,
+})
+
+MiniHubTab:CreateSection("Auto Revistar")
+MiniHubTab:CreateToggle({
+    Name = "Ativar Auto Revistar",
+    CurrentValue = false,
+    Flag = "autorsv",
+    Callback = function(Value)
+        autoRevistarAtivo = Value
+        if autoRevistarAtivo then
+            autoRevTask = task.spawn(function()
+                while autoRevistarAtivo do
+                    game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
+                    task.wait(2)
+                end
+            end)
+        else
+            if autoRevTask then
+                task.cancel(autoRevTask)
+                autoRevTask = nil
+            end
+        end
+    end,
+})
+
+MiniHubTab:CreateSection("Itens dos Jogadores")
+MiniHubTab:CreateToggle({
+    Name = "Ver itens UI",
+    CurrentValue = false,
+    Flag = "veritensui",
+    Callback = function(Value)
+        verItensUIAtivo = Value
+        if Value then
+            aplicarVerItensUI()
+        else
+            removerVerItensUI()
+        end
+    end,
+})
+
+-- HITBOX
+local HitboxSection = Tab:CreateSection("Hitbox")
+
+local tamanhosOriginal = {}
+
+local function setHitbox(player, size)
+    if not player or not player.Character or not player.Character:FindFirstChild("Head") then return end
+    local head = player.Character.Head
+    if not tamanhosOriginal[player] then
+        tamanhosOriginal[player] = head.Size
     end
+    head.Size = size
+end
 
+local function resetHitbox(player)
+    if not player or not player.Character or not player.Character:FindFirstChild("Head") then return end
+    local head = player.Character.Head
+    if tamanhosOriginal[player] then
+        head.Size = tamanhosOriginal[player]
+    end
+end
 
-    players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function(character)
-            if Value then
-                applyHighlight(character)
+local hitboxEnabled = false
+local hitboxConnection
+
+local function toggleHitbox(habilitado)
+    hitboxEnabled = habilitado
+    if habilitado then
+        hitboxConnection = game:GetService("RunService").RenderStepped:Connect(function()
+            for _, jogador in pairs(game:GetService("Players"):GetPlayers()) do
+                if jogador ~= Player and jogador.Character and jogador.Character:FindFirstChild("Head") then
+                    setHitbox(jogador, Vector3.new(5, 5, 5)) -- Tamanho expandido da cabeça
+                end
             end
         end)
-    end)
-
-    players.PlayerRemoving:Connect(function(player)
-        removeHighlight(player.Character) 
-    end)
-end
-
-
-VisualTab:CreateToggle({
-   Name = "ESP Highlight",
-   CurrentValue = false,
-   Flag = "Toggle2", 
-   Callback = function(Value)
-        monitorHighlight(Value)
-   end,
-   -------------- espname---------
-})
--- Tabela para armazenar os ESPs dos jogadores
-local players = game:GetService("Players")
-
-local espInstances = {}
-
-local function createESPName(player)
-    local character = player.Character or player.CharacterAdded:Wait()
-    if character:FindFirstChild("ESPName") then return end 
-    local billboardGui = Instance.new("BillboardGui")
-    billboardGui.Name = "ESPName"
-    billboardGui.Adornee = character:WaitForChild("Head")
-    billboardGui.Size = UDim2.new(27, 0, 2, 0) 
-    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
-    billboardGui.AlwaysOnTop = true
-
-    local nameLabel = Instance.new("TextLabel", billboardGui)
-    nameLabel.Text = player.Name
-    nameLabel.Size = UDim2.new(1, 0, 1, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.new(1, 1, 1) 
-    nameLabel.TextStrokeTransparency = 0.2 
-    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0) 
-    nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.TextSize = 27 
-    nameLabel.TextScaled = false
-
-    billboardGui.Parent = character
-    espInstances[player] = billboardGui 
-end
-
-
-local function removeESPName(player)
-    local esp = espInstances[player]
-    if esp then
-        esp:Destroy()
-        espInstances[player] = nil 
-    end
-end
-
-local function monitorESP(Value)
-    for _, player in ipairs(players:GetPlayers()) do
-        if player ~= players.LocalPlayer then
-            local character = player.Character or player.CharacterAdded:Wait()
-            if Value then
-                createESPName(player)
-            else
-                removeESPName(player) 
+    else
+        if hitboxConnection then
+            hitboxConnection:Disconnect()
+            hitboxConnection = nil
+        end
+        for _, jogador in pairs(game:GetService("Players"):GetPlayers()) do
+            if jogador ~= Player then
+                resetHitbox(jogador)
             end
         end
+        tamanhosOriginal = {}
     end
-
-    
-    players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function(character)
-            if Value then
-                createESPName(player)
-            end
-        end)
-    end)
-
-    
-    players.PlayerRemoving:Connect(function(player)
-        removeESPName(player) 
-    end)
 end
 
-
-VisualTab:CreateToggle({
-   Name = "ESP Name",
-   CurrentValue = false,
-   Flag = "Toggle1", 
-   Callback = function(Value)
-        
-        monitorESP(Value)
-   end,
+Tab:CreateToggle({
+    Name = "Expansor de Hitbox",
+    Description = "Aumenta o tamanho da cabeça dos outros jogadores.",
+    CurrentValue = false,
+    Section = HitboxSection,
+    Callback = function(Value)
+        toggleHitbox(Value)
+    end
 })
 
+-- TELEPORTES
+TeleportTab:CreateParagraph({Title = "Mini Hub", Content = "por th"})
+TeleportTab:CreateSection("TELEPORTS")
 
-local TeleportTab = Window:CreateTab("Teleports")
-local Paragraph = TeleportTab:CreateParagraph({Title = "Mini Hub", Content = "feito por equipe Hub"})
-
-
-local Section = TeleportTab:CreateSection("TELEPORTS")
-local function addTeleportButton(name, cframe)
+local function addTeleportButton(nome, cframe)
     TeleportTab:CreateButton({
-        Name = name,
+        Name = nome,
         Callback = function()
             local player = game.Players.LocalPlayer
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 player.Character:MoveTo(cframe.Position + Vector3.new(0, 3, 0))
             end
-        end,
+        end
     })
 end
--- Adicionando os botÃµes de teletransporte para locais fixos
-addTeleportButton("Teleport PraÃ§a", CFrame.new(-291.579559, 3.26299787, 342.192535))
-addTeleportButton("Teleport GÃ¡s", CFrame.new(-469.959015, 3.25349784, -54.3936005))
-addTeleportButton("Teleport HP", CFrame.new(-543.439941, 3.26299858, 645.16864))
+
+-- Locais fixos
+addTeleportButton("Teleport Praça", CFrame.new(-291.579559, 3.26299787, 342.192535))
+addTeleportButton("Teleport Gás", CFrame.new(-469.959015, 3.25349784, -54.3936005))
+addTeleportButton("Teletransportar HP", CFrame.new(-543.439941, 3.26299858, 645.16864))
 addTeleportButton("Teleport Tabacaria", CFrame.new(-83.1141129, 13.1430578, 74.7073364))
 addTeleportButton("Teleport Garagem", CFrame.new(-466.870148, 7.64567232, 350.242737))
-addTeleportButton("Teleport Concessionaria", CFrame.new(-91.3902893, 8.07136822, 520.355347))
-addTeleportButton("Teleport Gari", CFrame.new(-518.672852, 3.16749811, -1.16962147, 0, 0, -1, 0, 1, 0, 1, 0, 0))
-addTeleportButton("Teleport Imobiliaria", CFrame.new(-284.904785, 8.26088619, -72.2896194, 0, 0, -1, 0, 1, 0, 1, 0, 0))
-addTeleportButton("Teleport PM", CFrame.new(-980.181458, 2.27553082, 467.080536, 1, 0, 0, 0, 1, 0, 0, 0, 1))
-addTeleportButton("Teleport PRF", CFrame.new(6662.24512, 36.6637421, 5047.83838, 0.707134247, 0, 0.707079291, 0, 1, 0, -0.707079291, 0, 0.707134247))
-addTeleportButton("Teleport MineraÃ§Ã£o", CFrame.new(201.932144, 2.76136589, 145.50531, 0, 0, 1, 0, 1, -0, -1, 0, 0))
-addTeleportButton("Teleport MecÃ¢nica", CFrame.new(-180.608261, 3.29813337, -532.4151, 0.422592998, -0, -0.906319618, 0, 1, -0, 0.906319618, 0, 0.422592998))
-addTeleportButton("Teleport Fazenda", CFrame.new(817.243225, 3.26249814, -87.316864, 0, 0, 1, 0, 1, 0, -1, 0, 0))
-addTeleportButton("Teleport Prefeitura", CFrame.new(-284.388458, 15.1148872, 88.0397873, 0, 0, -1, 0, 1, 0, 1, 0, 0))
-addTeleportButton("Teleport Banco", CFrame.new(-27.2709007, 11.5685892, 418.200653, 1, 0, 0, 0, 1, 0, 0, 0, 1))
-addTeleportButton("Teleport Ilegal", CFrame.new(12037.2705, 27.5305443, 12794.0635, 0.965929627, -0, -0.258804798, 0, 1, -0, 0.258804798, 0, 0.965929627))
-addTeleportButton("Teleport predio 1", CFrame.new(-1595.23328, 204.074341, 555.895386, 0.939687431, -0.34203434, 1.81794167e-06, 1.81794167e-06, 1.02519989e-05, 1, -0.34203434, -0.93968749, 1.02519989e-05))
-addTeleportButton("Teleport Devs Mini City", CFrame.new(2555.44263, 303.167755, -1004.13763, -0.422592998, 0, 0.906319618, 0, 1, 0, -0.906319618, 0, -0.422592998))
+addTeleportButton("Teleport Concessionária", CFrame.new(-91.3902893, 8.07136822, 520.355347))
+addTeleportButton("Teletransportar Gari", CFrame.new(-518.672852, 3.16749811, -1.16962147))
+addTeleportButton("Teleport Imobiliária", CFrame.new(-284.904785, 8.26088619, -72.2896194))
+addTeleportButton("Teletransportar PM", CFrame.new(-980.181458, 2.27553082, 467.080536))
+addTeleportButton("Teletransporte PRF", CFrame.new(6662.24512, 36.6637421, 5047.83838))
+addTeleportButton("Teleport Mineração", CFrame.new(201.932144, 2.76136589, 145.50531))
+addTeleportButton("Teleport Mecânica", CFrame.new(-180.608261, 3.29813337, -532.4151))
+addTeleportButton("Teleport Fazenda", CFrame.new(817.243225, 3.26249814, -87.316864))
+addTeleportButton("Teleport Prefeitura", CFrame.new(-284.388458, 15.1148872, 88.0397873))
+addTeleportButton("Teleport Banco", CFrame.new(-27.2709007, 11.5685892, 418.200653))
+addTeleportButton("Teletransporte ilegal", CFrame.new(12037.2705, 27.5305443, 12794.0635))
+addTeleportButton("Teleportar Prédio 1", CFrame.new(-1595.23328, 204.074341, 555.895386))
+addTeleportButton("Teletransporte Devs Mini",CFrame.new(-291.579559, 3.26299787, 342.192535))
 
-local rev = Window:CreateTab("Revistar")
-local Paragraph = rev:CreateParagraph({Title = "Mini Hub", Content = "feito por Th e equipe"})
-local Section = rev:CreateSection("SE QUISER SIM")
-local Button = rev:CreateButton({
-   Name = "AUTO ROUBAR",
-   Callback = function()
-   -- FunÃ§Ã£o para deletar todas as NotifyGui
-local function deletarNotifyGui()
-    local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        if gui.Name == "NotifyGui" and gui:IsA("ScreenGui") then
-            gui:Destroy() -- Deleta a NotifyGui
+
+-- Seção Hitbox
+local HitboxSection = Tab:CreateSection("Hitbox (PC e Mobile)") -- Use Tab instead of MainTab
+
+local hitboxEnabled = false
+local originalSizes = {}
+
+local function setHitbox(targetPlayer, size)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+        local head = targetPlayer.Character.Head
+        if not originalSizes[targetPlayer] then
+            originalSizes[targetPlayer] = head.Size
         end
+        head.Size = size
+        head.Transparency = 0.7
+        head.Material = Enum.Material.Neon
+        head.Color = Color3.fromRGB(255, 0, 0)
+        head.CanCollide = false
     end
 end
 
--- Lista de itens para pegar
-local itens = {"AK47", "Uzi","Glock17","Glock 17","Parafal","PARAFAL","Tratamento","Faca","IA2", "G3","FACA", "Xbox", "Hi Power", "Natalina", "C4", "AR-15", "AR15", "Escudo", "ESCUDO","Plastico Pronto","Plástico Pronto","Planta limpa","Planta sujá","Planta suja"}
--- Argumentos para a requisiÃ§Ã£o
-local args = {
-    [1] = "mudaInv",
-    [2] = "2",
-    [4] = "1"
-}
-
--- Loop principal
-while true do
-    -- Deletar todas as NotifyGui antes de pegar os itens
-    deletarNotifyGui()
-
-    -- Pegar itens
-    for i, item in ipairs(itens) do
-        if i <= 16 then  -- SÃ³ tenta alocar atÃ© 16 slots
-            args[3] = item  -- Atualiza o item para o valor da vez
-            args[2] = tostring(i)  -- Atribui o slot dinamicamente (1, 2, 3, ..., 16)
-
-            -- Usar task.spawn() para execuÃ§Ã£o sem delay
-            task.spawn(function()
-                -- Envia a requisiÃ§Ã£o para o servidor
-                game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("InvRemotes"):WaitForChild("InvRequest"):InvokeServer(unpack(args))
-            end)
-        end
-    end
-
-    wait(0)  -- Espera um frame para evitar lag
-end
-   end,
-})
-local Section = rev:CreateSection("PC")
-local ww = rev:CreateToggle({
-   Name = "mandar revistar (TECLA T)",
-   CurrentValue = false,
-   Flag = "rvst",
-   Callback = function(Value)
-       getgenv().Enabled = Value
-   end,
-})
-local Section = rev:CreateSection("MOBILE")
-local mob = rev:CreateButton({
-   Name = "Auto revistar",
-   Callback = function()
-   local TextChatService = game:GetService("TextChatService")
-
--- FunÃ§Ã£o para enviar a mensagem /revistar
-local function sendRevistarMessage()
-    local channel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral")
-    channel:SendAsync("/revistar")
-end
-
--- Cria a interface
-local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local CloseButton = Instance.new("TextButton")
-local RevistarButton = Instance.new("TextButton")
-local Title = Instance.new("TextLabel")
-
-ScreenGui.Name = "RevistarUI"
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
--- Estilo do Frame
-Frame.Size = UDim2.new(0, 300, 0, 150)
-Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BorderSizePixel = 0
-Frame.BackgroundTransparency = 0.1
-Frame.Active = true
-Frame.Draggable = true
-
--- TÃ­tulo
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Position = UDim2.new(0, 0, 0, 0)
-Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Title.Text = "MINI HUB SUS"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 18
-
--- BotÃ£o Fechar
-CloseButton.Size = UDim2.new(0, 30, 0, 30)
-CloseButton.Position = UDim2.new(1, -30, 0, 0)
-CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.TextSize = 18
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
--- BotÃ£o Revistar
-RevistarButton.Size = UDim2.new(0.8, 0, 0.4, 0)
-RevistarButton.Position = UDim2.new(0.1, 0, 0.5, -30)
-RevistarButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
-RevistarButton.Text = "manda /revistar"
-RevistarButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-RevistarButton.Font = Enum.Font.SourceSansBold
-RevistarButton.TextSize = 20
-RevistarButton.AutoButtonColor = true
-RevistarButton.MouseButton1Click:Connect(function()
-    sendRevistarMessage()
-end)
-
--- Adiciona os elementos ao frame
-Frame.Parent = ScreenGui
-Title.Parent = Frame
-CloseButton.Parent = Frame
-RevistarButton.Parent = Frame
-   end,
-})
-local Section = rev:CreateSection("Info")
-local Paragraph = rev:CreateParagraph({Title = "Como usar?", Content = "Ensinamos a usar corretamente no nosso discord."})
-
-
-
-local otoTab = Window:CreateTab("Outros")
-local Paragraph = otoTab:CreateParagraph({Title = "Mini Hub", Content = "FEITO POR TH E EQUIPE"})
-local Toggle = otoTab:CreateToggle({
-    Name = "ANTI BARATA",
-    CurrentValue = false,
-    Flag = "ToggleKickCheck",
-    Callback = function(Value)
-        if Value then
-            getgenv().KickCheck = true
-            local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Lista de nomes a serem monitorados
-local targetUsernames = {
-    "jake56839ad", "CleitinDoGrau_Eb", "21peteca", "Lucalarte", "SPTmatheus123",
-    "GuilhermeDRTgg", "Briessxz", "hardstyless", "Mundaka", "mundaka", "Isabelaaaaafofs",
-    "HANRLLEY25", "kaleb_iaee", "brunizoraa", "rip_propleyfran", "pepezicador",
-    "Jjhgul", "Dariosantos21048", "JEKER_2009", "tttonas", "MZPlug14k",
-    "Dudubeterotv5", "Sargento_admOficial", "Cassiopia84un", "Hakplays", "Cleo_ptr"
-}
-
--- Converte a lista para uma tabela para verificaÃ§Ã£o rÃ¡pida
-local targetLookup = {}
-for _, name in ipairs(targetUsernames) do
-    targetLookup[name] = true
-end
-
--- Inicializa a configuraÃ§Ã£o global
-getgenv().KickCheck = getgenv().KickCheck or true
-
--- FunÃ§Ã£o para verificar e kickar caso necessÃ¡rio
-local function checkForTargetPlayers()
-    if not getgenv().KickCheck then return end
-
-    for _, player in pairs(Players:GetPlayers()) do
-        if targetLookup[player.Name] then
-            warn("UsuÃ¡rio indesejado detectado:", player.Name)
-            LocalPlayer:Kick("Um staff foi detectado no servidor.")
-            break
-        end
+local function resetHitbox(targetPlayer)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") and originalSizes[targetPlayer] then
+        local head = targetPlayer.Character.Head
+        head.Size = originalSizes[targetPlayer]
+        head.Transparency = 0
+        head.Material = Enum.Material.Plastic
+        head.Color = Color3.fromRGB(255, 255, 255)
+        head.CanCollide = true
     end
 end
 
--- Verifica inicialmente
-checkForTargetPlayers()
+local hitboxConnection
 
--- Verifica sempre que um novo jogador entrar
-Players.PlayerAdded:Connect(function(player)
-    if getgenv().KickCheck and targetLookup[player.Name] then
-        warn("UsuÃ¡rio indesejado detectado:", player.Name)
-        LocalPlayer:Kick("Um staff foi detectado no servidor.")
-    end
-end)
-print("check")
-        else
-            getgenv().KickCheck = false
-        end
-    end
-})
-
-
--- Loop para checar a cada 5 segundos, apenas se ativado
-task.spawn(function()
-    while true do
-        if checkActive then
-            checkStaffTeam()
-        end
-        task.wait(5)
-    end
-end)
-
-local Section = otoTab:CreateSection("AUTO CL CONFIG")
--- Verifica se getgenv estÃ¡ disponÃ­vel
-if getgenv == nil then
-    error("getgenv nÃ£o estÃ¡ definido neste ambiente.")
-end
-
--- ConfiguraÃ§Ã£o inicial do getgenv
-getgenv().KickOnLowHealth = false -- Ativar/desativar o auto kick
-getgenv().HealthThreshold = 10    -- Vida mÃ­nima antes de ser expulso
-
--- FunÃ§Ã£o para monitorar a vida do jogador
-local function monitorHealth()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if character and character:FindFirstChild("Humanoid") then
-        local humanoid = character.Humanoid
-        humanoid.HealthChanged:Connect(function(health)
-            if health <= getgenv().HealthThreshold and getgenv().KickOnLowHealth then
-                player:Kick("Auto cl pq tua vida tava abaixo de " .. getgenv().HealthThreshold)
+local function toggleHitbox(enabled)
+    hitboxEnabled = enabled
+    if enabled then
+        hitboxConnection = game:GetService("RunService").RenderStepped:Connect(function()
+            for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+                if player ~= Player then
+                    setHitbox(player, Vector3.new(5, 5, 5)) -- Tamanho expandido da Head
+                end
             end
         end)
+    else
+        if hitboxConnection then
+            hitboxConnection:Disconnect()
+            hitboxConnection = nil
+        end
+        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+            if player ~= Player then
+                resetHitbox(player)
+            end
+        end
+        originalSizes = {}
     end
 end
 
-game.Players.LocalPlayer.CharacterAdded:Connect(function()
-    monitorHealth()
-end)
-
-if game.Players.LocalPlayer.Character then
-    monitorHealth()
-end
-
--- CriaÃ§Ã£o do Toggle para ativar/desativar o auto kick
-local Toggle = otoTab:CreateToggle({
-   Name = "auto CL",
-   CurrentValue = getgenv().KickOnLowHealth,
-   Flag = "AutoKickToggle",
-   Callback = function(Value)
-       getgenv().KickOnLowHealth = Value
-   end,
-})
-
--- CriaÃ§Ã£o do Slider para ajustar o limite de vida
-local Slider = otoTab:CreateSlider({
-   Name = "kick quando vida =",
-   Range = {0, 100},
-   Increment = 1,
-   Suffix = " HP",
-   CurrentValue = getgenv().HealthThreshold,
-   Flag = "HealthThresholdSlider",
-   Callback = function(Value)
-       getgenv().HealthThreshold = Value
-   end,
-})
-
-getgenv().Key = Enum.KeyCode.E
-getgenv().Enabled = getgenv().Enabled or false
-local UserInputService = game:GetService("UserInputService")
-
--- ConfiguraÃ§Ãµes via getgenv
-getgenv().Key = getgenv().Key or Enum.KeyCode.R -- Tecla padrÃ£o: R
-getgenv().Enabled = getgenv().Enabled or false -- Estado inicial: desativado
-
--- FunÃ§Ã£o para enviar a mensagem /revistar
-local function sendRevistarMessage()
-    local TextChatService = game:GetService("TextChatService")
-    local channel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral")
-    channel:SendAsync("/revistar")
-end
-
--- Listener para detectar teclas pressionadas
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    -- Verifica se o script estÃ¡ ativado e se a tecla correta foi pressionada
-    if getgenv().Enabled and input.KeyCode == getgenv().Key and not gameProcessed then
-        sendRevistarMessage()
+Tab:CreateToggle({
+    Name = "Hitbox Expander",
+    Description = "Aumenta o tamanho da cabeça dos outros jogadores.",
+    CurrentValue = false,
+    Section = HitboxSection,
+    Callback = function(Value)
+        toggleHitbox(Value)
     end
-end)
+})
+
+-- CONFIG TAB
+local ConfigSection = ConfigTab:CreateSection("Ajustes e Preferências")
+
+-- Variável para controle do som
+local soundMuted = false
+
+-- Botões de Configurações para PC e Mobile
+
+ConfigTab:CreateButton({
+    Name = "Ativar Modo de Desempenho (FPS Boost Melhorado)",
+    Callback = function()
+        for i,v in pairs(game:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.Plastic
+                v.Reflectance = 0
+                v.CastShadow = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 0.5
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = false
+            elseif v:IsA("Smoke") or v:IsA("Fire") then
+                v.Enabled = false
+            end
+        end
+        -- Deixar a iluminação normal, sem névoa
+        local Lighting = game:GetService("Lighting")
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 100000
+        Lighting.Brightness = 2
+        Lighting.GlobalShadows = false
+        sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+    end,
+})
+
+ConfigTab:CreateToggle({
+    Name = "Ativar/Desativar Som do Jogo",
+    CurrentValue = false,
+    Callback = function(Value)
+        soundMuted = Value
+        for _, s in pairs(game:GetService("SoundService"):GetDescendants()) do
+            if s:IsA("Sound") then
+                s.Volume = soundMuted and 0 or 1
+            end
+        end
+    end,
+})
+
+ConfigTab:CreateButton({
+    Name = "Resetar Personagem",
+    Callback = function()
+        local plr = game.Players.LocalPlayer
+        if plr.Character then
+            plr.Character:BreakJoints()
+        end
+    end,
+})
+
+ConfigTab:CreateButton({
+    Name = "Desligar Partículas",
+    Callback = function()
+        for _, obj in pairs(game:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                obj.Enabled = false
+            end
+        end
+    end,
+})
+
+ConfigTab:CreateButton({
+    Name = "Ativar Gráficos Baixos (Mobile)",
+    Callback = function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end,
+})
+
+ConfigTab:CreateButton({
+    Name = "Ativar Gráficos Médios (PC)",
+    Callback = function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level08
+    end,
+})
