@@ -451,30 +451,27 @@ end
 local function verificarVida()
     local jogador = game.Players.LocalPlayer
     local humanoide = jogador.Character and jogador.Character:WaitForChild("Humanoid")
-    
-    -- Verifica a vida inicial
+
+    -- Se não houver humanoide por algum motivo, encerra
+    if not humanoide then return end
+
     local function verificarVidaAtual()
         if humanoide.Health <= 10 and humanoide.Health >= 0 then
-            -- Teleporta o jogador para o local da Tabacaria
             jogador.Character:SetPrimaryPartCFrame(CFrame.new(-83.1141129, 13.1430578, 74.7073364))
-
-            -- Espera 2 segundos e então kicka o jogador com a mensagem fornecida
-            wait(2)
+            task.wait(2)
             game.Players.LocalPlayer:Kick("anti AC (Cl)")
         end
     end
 
-    -- Conecta ao evento de mudança de saúde
-    humanoide.HealthChanged:Connect(function()
-        verificarVidaAtual()
-    end)
-
-    -- Verifica se a vida inicial já está dentro do intervalo desejado
+    humanoide.HealthChanged:Connect(verificarVidaAtual)
     verificarVidaAtual()
 end
 
--- Chama a função para verificar a vida do jogador
-verificarVida()
+-- Esta função é chamada quando o toggle for ativado
+function ativarAntiRevistar()
+    verificarVida()
+end
+
 
 -- ESP
 local ESPAtivo = false
