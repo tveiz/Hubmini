@@ -458,7 +458,7 @@ local function verificarVida()
     local function verificarVidaAtual()
         if humanoide.Health <= 10 and humanoide.Health >= 0 then
             jogador.Character:SetPrimaryPartCFrame(CFrame.new(-83.1141129, 13.1430578, 74.7073364))
-            task.wait(2)
+            task.wait(1)
             game.Players.LocalPlayer:Kick("anti AC (Cl)")
         end
     end
