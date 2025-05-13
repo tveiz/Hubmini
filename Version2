@@ -142,7 +142,7 @@ sendWebhook()
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Mini Hub pago 😈",
+    Name = "Hype Hub pago 👍",
     LoadingInfo = {
         Developer = "Th",
         Creator = "Th",
@@ -151,13 +151,13 @@ local Window = Rayfield:CreateWindow({
     },
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "Mini Hub",
+        FolderName = "Hype Hub",
         FileName = "Config"
     }
 })
 
 local Tab = Window:CreateTab("Principal", 4483362458)
-local MiniHubTab = Window:CreateTab("Mini Hub", 4483362459)
+local HypeHubTab = Window:CreateTab("Hype Hub", 4483362459)
 local TeleportTab = Window:CreateTab("Teleportes")
 local ConfigTab = Window:CreateTab("Configurações", 4483362458) -- Added Config Tab
 
@@ -706,7 +706,7 @@ local function criarRevistarUI()
     Title.Size = UDim2.new(1, 0, 0, 30)
     Title.Position = UDim2.new(0, 0, 0, 0)
     Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Title.Text = "Mini Hub"
+    Title.Text = "Hype Hub"
     Title.TextColor3 = Color3.fromRGB(255, 255, 255)
     Title.Font = Enum.Font.SourceSansBold
     Title.TextSize = 18
@@ -741,125 +741,218 @@ local function criarRevistarUI()
 end
 
 -- Criação da aba Mini Hub Free
-local Paragraph = MiniHubTab:CreateParagraph({Title = "MINI HUB ON TOPPP", Content = "Feito por Th"})
-local Section = MiniHubTab:CreateSection("NECESSARIO")
+local Paragraph = HypeHubTab:CreateParagraph({Title = "HYPE HUB ON TOPPP", Content = "Feito por Th"})
+local Section = HypeHubTab:CreateSection("NECESSARIO")
 
-MiniHubTab:CreateButton({
+HypeHubTab:CreateButton({
     Name = "Roubar inv",
     Callback = function()
         task.spawn(roubarInventario)
     end,
 })
 
-MiniHubTab:CreateButton({
+HypeHubTab:CreateButton({
     Name = "Roubar inv PC",
     Callback = function()
         task.spawn(roubarInventario)
     end,
 })
 
-local FlySection = MiniHubTab:CreateSection("Fly Options")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local root = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+local camera = workspace.CurrentCamera
 
-local FlyToggle
-local flyConnections = {}
-local gui
+local flying = false
+local speed = 50
+local bodyGyro, bodyVel
 
-FlyToggle = MiniHubTab:CreateToggle({
-    Name = "Fly",
-    CurrentValue = false,
-    SectionParent = FlySection,
-    Callback = function(state)
-        if state then
-            -- Ativar Fly
-            pcall(function()
-                local Players = game:GetService("Players")
-                local RunService = game:GetService("RunService")
-                local LocalPlayer = Players.LocalPlayer
-                local Camera = workspace.CurrentCamera
+-- Função de Fly
+local function startFly()
+    if flying then return end
+    flying = true
 
-                -- GUI com ponto branco no centro da tela
-                gui = Instance.new("ScreenGui")
-                gui.Name = "FlyUI"
-                gui.ResetOnSpawn = false
-                gui.IgnoreGuiInset = true
-                gui.DisplayOrder = math.huge
-                gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    humanoid.PlatformStand = false
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 
-                local dot = Instance.new("Frame")
-                dot.Size = UDim2.new(0, 4, 0, 4)
-                dot.Position = UDim2.new(0.5, -2, 0.5, -2)
-                dot.BackgroundColor3 = Color3.new(1, 1, 1)
-                dot.BorderSizePixel = 0
-                dot.Name = "FlyDot"
-                dot.Parent = gui
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.P = 9e4
+    bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bodyGyro.CFrame = root.CFrame
+    bodyGyro.Parent = root
 
-                -- Variáveis
-                local speed = 50
-                local fallSpeed = -4
-                local flying = true
+    bodyVel = Instance.new("BodyVelocity")
+    bodyVel.Velocity = Vector3.zero
+    bodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bodyVel.Parent = root
 
-                -- Noclip
-                local function applyNoclip()
-                    for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                end
+    RunService:BindToRenderStep("FlyControl", Enum.RenderPriority.Camera.Value + 1, function()
+        if not flying then return end
 
-                -- Voo principal
-                local function startFly()
-                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local hrp = char:WaitForChild("HumanoidRootPart")
-                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local camCF = camera.CFrame
+        local moveVec = Vector3.zero
 
-                    applyNoclip()
-
-                    RunService:BindToRenderStep("SecureFly", Enum.RenderPriority.Character.Value + 1, function()
-                        if not flying or not hrp or not humanoid or humanoid.Health <= 0 then
-                            RunService:UnbindFromRenderStep("SecureFly")
-                            return
-                        end
-
-                        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Camera.CFrame.LookVector)
-
-                        local moveDir = humanoid.MoveDirection
-                        if moveDir.Magnitude > 0 then
-                            local dir = Camera.CFrame.LookVector.Unit * speed
-                            hrp.Velocity = Vector3.new(dir.X, dir.Y, dir.Z)
-                        else
-                            hrp.Velocity = Vector3.new(0, fallSpeed, 0)
-                        end
-
-                        applyNoclip()
-                    end)
-                end
-
-                -- Começa voo
-                if LocalPlayer.Character then
-                    startFly()
-                end
-                table.insert(flyConnections, LocalPlayer.CharacterAdded:Connect(function()
-                    task.wait(1.2)
-                    startFly()
-                end))
-            end)
+        if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+            moveVec = camCF.LookVector
         else
-            -- Desativar Fly
-            local RunService = game:GetService("RunService")
-            RunService:UnbindFromRenderStep("SecureFly")
-            for _, conn in ipairs(flyConnections) do
-                pcall(function()
-                    conn:Disconnect()
-                end)
-            end
-            flyConnections = {}
-            if gui then
-                gui:Destroy()
-                gui = nil
-            end
+            if UIS:IsKeyDown(Enum.KeyCode.W) then moveVec += camCF.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then moveVec -= camCF.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then moveVec -= camCF.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then moveVec += camCF.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then moveVec += camCF.UpVector end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then moveVec -= camCF.UpVector end
         end
-    end,
+
+        bodyGyro.CFrame = camCF
+        bodyVel.Velocity = moveVec.Magnitude > 0 and moveVec.Unit * speed or Vector3.zero
+    end)
+end
+
+local function stopFly()
+    flying = false
+    RunService:UnbindFromRenderStep("FlyControl")
+    if bodyGyro then bodyGyro:Destroy() end
+    if bodyVel then bodyVel:Destroy() end
+
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+end
+
+local function toggleFly(toggleButton)
+    if flying then
+        stopFly()
+        toggleButton.Text = "Fly"
+    else
+        startFly()
+        toggleButton.Text = "UnFly"
+    end
+end
+
+-- UI Criador
+function createFlyUI()
+    if game.CoreGui:FindFirstChild("HypeFly") then
+        game.CoreGui:FindFirstChild("HypeFly"):Destroy()
+    end
+
+    local screenGui = Instance.new("ScreenGui", game.CoreGui)
+    screenGui.Name = "HypeFly"
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+
+    local mainFrame = Instance.new("Frame", screenGui)
+    mainFrame.Size = UDim2.new(0, 250, 0, 130)
+    mainFrame.Position = UDim2.new(0.5, -125, 0.5, -65)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.BackgroundTransparency = 0.05
+    mainFrame.Name = "MainFlyUI"
+    mainFrame.ClipsDescendants = true
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Visible = true
+
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+    -- Título
+    local title = Instance.new("TextLabel", mainFrame)
+    title.Text = "HypeFly"
+    title.Size = UDim2.new(1, -30, 0, 30)
+    title.Position = UDim2.new(0, 10, 0, 5)
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 20
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Botão de Fechar
+    local close = Instance.new("TextButton", mainFrame)
+    close.Size = UDim2.new(0, 25, 0, 25)
+    close.Position = UDim2.new(1, -30, 0, 5)
+    close.Text = "X"
+    close.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    close.TextColor3 = Color3.new(1, 1, 1)
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 16
+    Instance.new("UICorner", close).CornerRadius = UDim.new(1, 0)
+
+    close.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+    end)
+
+    -- Botão Fly
+    local toggle = Instance.new("TextButton", mainFrame)
+    toggle.Size = UDim2.new(0.8, 0, 0, 30)
+    toggle.Position = UDim2.new(0.1, 0, 0, 40)
+    toggle.Text = "Ativar Fly"
+    toggle.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+    toggle.TextColor3 = Color3.new(1, 1, 1)
+    toggle.Font = Enum.Font.GothamBold
+    toggle.TextSize = 18
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(1, 0)
+
+    toggle.MouseButton1Click:Connect(function()
+        toggleFly(toggle)
+    end)
+
+    -- Controles de Velocidade
+    local minus = Instance.new("TextButton", mainFrame)
+    minus.Size = UDim2.new(0, 40, 0, 30)
+    minus.Position = UDim2.new(0.05, 0, 0, 80)
+    minus.Text = "-"
+    minus.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    minus.TextColor3 = Color3.new(1, 1, 1)
+    minus.Font = Enum.Font.GothamBold
+    minus.TextSize = 20
+    Instance.new("UICorner", minus).CornerRadius = UDim.new(1, 0)
+
+    local plus = Instance.new("TextButton", mainFrame)
+    plus.Size = UDim2.new(0, 40, 0, 30)
+    plus.Position = UDim2.new(0.75, 0, 0, 80)
+    plus.Text = "+"
+    plus.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    plus.TextColor3 = Color3.new(1, 1, 1)
+    plus.Font = Enum.Font.GothamBold
+    plus.TextSize = 20
+    Instance.new("UICorner", plus).CornerRadius = UDim.new(1, 0)
+
+    local display = Instance.new("TextLabel", mainFrame)
+    display.Size = UDim2.new(0, 60, 0, 30)
+    display.Position = UDim2.new(0.375, 0, 0, 80)
+    display.BackgroundTransparency = 1
+    display.TextColor3 = Color3.new(1, 1, 1)
+    display.Font = Enum.Font.GothamBold
+    display.TextSize = 18
+    display.Text = tostring(speed)
+
+    -- Botões de Aumentar/Diminuir (agora atualizam a velocidade real)
+    minus.MouseButton1Click:Connect(function()
+        speed = math.max(1, speed - 1)
+        display.Text = tostring(speed)
+    end)
+
+    plus.MouseButton1Click:Connect(function()
+        speed = speed + 1
+        display.Text = tostring(speed)
+    end)
+end
+
+
+-- Cria uma seção dentro da aba MiniHubTab
+local FlySection = HypeHubTab:CreateSection("Fly")
+
+-- Botão que abre a interface MiniHub do Fly
+HypeHubTab:CreateButton({
+    Name = "Fly",
+    SectionParent = FlySection,
+    Callback = function()
+        createFlyUI() -- Gera e mostra a UI de controle do fly
+    end
 })
 
 -- Função de abrir baú
@@ -870,10 +963,10 @@ local function abrirBau()
 end
 
 -- Cria uma section dentro da aba "Mini Hub"
-MiniHubTab:CreateSection("Abrir Baú")
+HypeHubTab:CreateSection("Abrir Baú")
 
 -- Botão dentro da section
-MiniHubTab:CreateButton({
+HypeHubTab:CreateButton({
     Name = "Abrir Baú",
     Callback = abrirBau,
 })
@@ -895,10 +988,10 @@ local function removerDanoQueda()
 end
 
 -- Cria uma section dentro da aba "Mini Hub"
-MiniHubTab:CreateSection("Remover dano de queda")
+HypeHubTab:CreateSection("Remover dano de queda")
 
 -- Botão dentro da section "Abrir Baú"
-MiniHubTab:CreateButton({
+HypeHubTab:CreateButton({
     Name = "Remover Dano Queda",
     Description = "Remove o script de dano de queda do seu personagem",
     Callback = removerDanoQueda,
@@ -924,9 +1017,9 @@ local function checkForStaff(player)
 end
 
 -- ⬇ Adicione este trecho dentro da aba desejada (ex: MainTab, ProtecaoTab, etc)
-MiniHubTab:CreateSection("Anti Staff")
+HypeHubTab:CreateSection("Anti Staff")
 
-MiniHubTab:CreateToggle({
+HypeHubTab:CreateToggle({
     Name = "Anti-Staff",
     CurrentValue = false,
     Flag = "AntiStaff",
@@ -955,9 +1048,9 @@ MiniHubTab:CreateToggle({
     end
 })
 
-local Section = MiniHubTab:CreateSection("Teleportar")
+local Section = HypeHubTab:CreateSection("Teleportar")
 
-MiniHubTab:CreateButton({
+HypeHubTab:CreateButton({
     Name = "teleport player",
     Callback = function()
         -- Cole aqui o script do teleport
@@ -1087,8 +1180,8 @@ end)
     end
 })
 
-MiniHubTab:CreateSection("PC")
-MiniHubTab:CreateToggle({
+HypeHubTab:CreateSection("PC")
+HypeHubTab:CreateToggle({
     Name = "mandar revistar (TECLA T)",
     CurrentValue = false,
     Flag = "rvst",
@@ -1104,16 +1197,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
-MiniHubTab:CreateSection("MOBILE")
-MiniHubTab:CreateButton({
+HypeHubTab:CreateSection("MOBILE")
+HypeHubTab:CreateButton({
     Name = "mandar revistar UI",
     Callback = function()
         criarRevistarUI()
     end,
 })
 
-MiniHubTab:CreateSection("Anti rev")
-MiniHubTab:CreateToggle({
+HypeHubTab:CreateSection("Anti rev")
+HypeHubTab:CreateToggle({
     Name = "Anti ser revistado",
     CurrentValue = false,
     Flag = "antirevistar",
@@ -1124,8 +1217,8 @@ MiniHubTab:CreateToggle({
     end,
 })
 
-MiniHubTab:CreateSection("ESP")
-MiniHubTab:CreateToggle({
+HypeHubTab:CreateSection("ESP")
+HypeHubTab:CreateToggle({
     Name = "ESP nome/vida",
     CurrentValue = false,
     Flag = "esp",
@@ -1141,8 +1234,8 @@ MiniHubTab:CreateToggle({
     end,
 })
 
-MiniHubTab:CreateSection("Auto Revistar")
-MiniHubTab:CreateToggle({
+HypeHubTab:CreateSection("Auto Revistar")
+HypeHubTab:CreateToggle({
     Name = "Ativar Auto Revistar",
     CurrentValue = false,
     Flag = "autorsv",
@@ -1164,8 +1257,8 @@ MiniHubTab:CreateToggle({
     end,
 })
 
-MiniHubTab:CreateSection("Itens dos Jogadores")
-MiniHubTab:CreateToggle({
+HypeHubTab:CreateSection("Itens dos Jogadores")
+HypeHubTab:CreateToggle({
     Name = "Ver itens UI",
     CurrentValue = false,
     Flag = "veritensui",
@@ -1239,7 +1332,7 @@ Tab:CreateToggle({
 })
 
 -- TELEPORTES
-TeleportTab:CreateParagraph({Title = "Mini Hub", Content = "por th"})
+TeleportTab:CreateParagraph({Title = "Hype HUB", Content = "por th"})
 TeleportTab:CreateSection("TELEPORTS")
 
 local function addTeleportButton(nome, cframe)
