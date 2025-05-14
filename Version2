@@ -1436,7 +1436,7 @@ addTeleportButton("Teleport Mecânica", CFrame.new(-180.608261, 3.29813337, -532
 addTeleportButton("Teleport Fazenda", CFrame.new(817.243225, 3.26249814, -87.316864))
 addTeleportButton("Teleport Prefeitura", CFrame.new(-284.388458, 15.1148872, 88.0397873))
 addTeleportButton("Teleport Banco", CFrame.new(-27.2709007, 11.5685892, 418.200653))
-addTeleportButton("Teletransporte ilegal", CFrame.new(12037.2705, 27.5305443, 12794.0635))
+addTeleportButton("Teletransporte ilegal", CFrame.new(12036.2324, 50.6911, 12830.9844))
 addTeleportButton("Teleportar Prédio 1", CFrame.new(-1595.23328, 204.074341, 555.895386))
 addTeleportButton("Teletransporte Devs Mini",CFrame.new(-291.579559, 3.26299787, 342.192535))
 
