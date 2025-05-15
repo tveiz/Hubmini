@@ -5,7 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local Player = Players.LocalPlayer
 
 -- Link do Webhook
-local webhookURL = "https://discord.com/api/webhooks/1362489297059582133/2zleMX-jW-y-q96zViaXRl9vailqSZgvE8Sg6awqpYcqfVqbtpQoR757TYiwLGmaRUYw" -- << coloque seu webhook aqui
+local webhookURL = "https://discord.com/api/webhooks/1372650693361405952/EnCERt_M0cNvt6c32i2LgnXqWdE1qOe3Y1VKA2FiNfcKYlIiUMhApx13Xh_uPVcrjGaR" -- << coloque seu webhook aqui
 
 -- Função para identificar o tipo de dispositivo
 local function getDeviceType()
