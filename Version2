@@ -380,6 +380,59 @@ Tab:CreateToggle({
     end
 })
 
+-- Variáveis
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local DrawingFOV = Drawing.new("Circle")
+DrawingFOV.Radius = 100
+DrawingFOV.Thickness = 2
+DrawingFOV.Filled = false
+DrawingFOV.Transparency = 1
+DrawingFOV.Color = Color3.fromRGB(255, 0, 0)
+DrawingFOV.Visible = false
+
+-- Atualiza posição do FOV na tela
+RunService.RenderStepped:Connect(function()
+	if DrawingFOV.Visible then
+		local screenCenter = workspace.CurrentCamera.ViewportSize / 2
+		DrawingFOV.Position = Vector2.new(screenCenter.X, screenCenter.Y)
+	end
+end)
+
+Tab:CreateSection ("Fov")
+Tab:CreateToggle({
+	Name = "FOV",
+	CurrentValue = false,
+	Flag = "ToggleFOV",
+	Callback = function(Value)
+		DrawingFOV.Visible = Value
+	end,
+})
+
+-- Slider para mudar o tamanho do FOV
+Tab:CreateSlider({
+	Name = "Tamanho do FOV",
+	Range = {30, 500},
+	Increment = 5,
+	Suffix = "px",
+	CurrentValue = 100,
+	Flag = "FOVSize",
+	Callback = function(Value)
+		DrawingFOV.Radius = Value
+	end,
+})
+
+-- Color Picker para mudar a cor do FOV
+Tab:CreateColorPicker({
+	Name = "Color",
+	Color = Color3.fromRGB(255, 0, 0),
+	Flag = "FOVColor",
+	Callback = function(Value)
+		DrawingFOV.Color = Value
+	end,
+})
+
 -- Mini Hub Free Functions
 local function deletarNotifyGui()
     local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -1069,7 +1122,100 @@ HypeHubTab:CreateToggle({
     end
 })
 
-local Section = HypeHubTab:CreateSection("Teleportar")
+local StaffESPEnabled = false
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local ESPs = {}
+
+-- Lista de Staffs
+local StaffNames = {
+    ["xxxjoaoxxxg"] = true, ["CleitinDoGrau_Eb"] = true, ["Jonas_411"] = true, ["Lucalarte"] = true,
+    ["SPTmatheus123"] = true, ["GuilhermeDRTgg"] = true, ["Briessxz"] = true, ["hardstyless"] = true,
+    ["Mundaka"] = true, ["Isabelaaaaafofs"] = true, ["HANRLLEY25"] = true, ["kaleb_iaee"] = true,
+    ["brunizoraa"] = true, ["rip_propleyfran"] = true, ["pepezicador"] = true, ["Jjhgul"] = true,
+    ["Dariosantos21048"] = true, ["JEKER_2009"] = true, ["Qqueqaco"] = true, ["MZPlug14k"] = true,
+    ["GregoriusKhronos"] = true, ["Sargento_admOficial"] = true, ["Cassiopia84un"] = true,
+    ["Hakplays"] = true, ["Cleo_ptr"] = true
+}
+
+-- Verifica se é Staff
+local function IsStaff(player)
+    local nameCheck = StaffNames[player.Name]
+    local usedFly = player:FindFirstChild("UsedFly") and player.UsedFly.Value == true
+    local isStaff = player:FindFirstChild("IsStaff") and player.IsStaff.Value == true
+    return nameCheck or usedFly or isStaff
+end
+
+-- Cria o ESP
+local function CreateESP(player)
+    if ESPs[player] then return end
+
+    local text = Drawing.new("Text")
+    text.Size = 16
+    text.Center = true
+    text.Outline = true
+    text.Color = Color3.new(1, 0, 0)
+    text.Visible = false
+    text.Text = "[STAFF] " .. player.Name
+    ESPs[player] = text
+
+    RunService.RenderStepped:Connect(function()
+        if not StaffESPEnabled or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            text.Visible = false
+            return
+        end
+        local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+        if onScreen then
+            text.Position = Vector2.new(pos.X, pos.Y - 25)
+            text.Visible = true
+        else
+            text.Visible = false
+        end
+    end)
+end
+
+-- Escaneia todos os jogadores
+local function ScanPlayers()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and IsStaff(player) then
+            CreateESP(player)
+        end
+    end
+end
+
+-- Novos jogadores
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if StaffESPEnabled and IsStaff(player) then
+            CreateESP(player)
+        end
+    end)
+end)
+
+-- Toggle do ESP
+local function ToggleStaffESP(state)
+    StaffESPEnabled = state
+    if not state then
+        for _, esp in pairs(ESPs) do
+            if esp then esp.Visible = false end
+        end
+    else
+        ScanPlayers()
+    end
+end
+
+HypeHubTab:CreateToggle({
+    Name = "ESP Staffs",
+    CurrentValue = false,
+    Flag = "ESPStaffs",
+    Callback = function(Value)
+        ToggleStaffESP(Value)
+    end
+})
+
+local Section = HypeHubTab:CreateSection("Players")
 
 HypeHubTab:CreateButton({
     Name = "teleport player",
@@ -1201,13 +1347,43 @@ end)
     end
 })
 
+HypeHubTab:CreateToggle({
+    Name = "ESP nome/vida",
+    CurrentValue = false,
+    Flag = "esp",
+    Callback = function(Value)
+        ESPAtivo = Value
+        if Value then
+            aplicarESP()
+        else
+            for _, player in pairs(Players:GetPlayers()) do
+                removerESP(player)
+            end
+        end
+    end,
+})
+
+HypeHubTab:CreateToggle({
+    Name = "Ver itens UI",
+    CurrentValue = false,
+    Flag = "veritensui",
+    Callback = function(Value)
+        verItensUIAtivo = Value
+        if Value then
+            aplicarVerItensUI()
+        else
+            removerVerItensUI()
+        end
+    end,
+})
+
 -- Inicializa variável global
 getgenv().RevistarAtivo = false
 
 -- Serviço de input
 local UserInputService = game:GetService("UserInputService")
 
-HypeHubTab:CreateSection ("Revistar Pc")
+HypeHubTab:CreateSection ("Revistar & anti rev")
 HypeHubTab:CreateToggle({
     Name = "Mandar revistar Pc Tecla T",
     CurrentValue = false,
@@ -1227,7 +1403,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
-HypeHubTab:CreateSection("MOBILE")
 HypeHubTab:CreateButton({
     Name = "mandar revistar UI",
     Callback = function()
@@ -1235,7 +1410,6 @@ HypeHubTab:CreateButton({
     end,
 })
 
-HypeHubTab:CreateSection("Anti rev")
 HypeHubTab:CreateToggle({
     Name = "Anti ser revistado",
     CurrentValue = false,
@@ -1247,58 +1421,54 @@ HypeHubTab:CreateToggle({
     end,
 })
 
-HypeHubTab:CreateSection("ESP")
-HypeHubTab:CreateToggle({
-    Name = "ESP nome/vida",
-    CurrentValue = false,
-    Flag = "esp",
-    Callback = function(Value)
-        ESPAtivo = Value
-        if Value then
-            aplicarESP()
-        else
-            for _, player in pairs(Players:GetPlayers()) do
-                removerESP(player)
-            end
-        end
-    end,
-})
+-- Variáveis iniciais
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local AutoRevistarAtivo = false
+local distanciaMaxima = 10 -- distância para revistar
+local podeRevistarNovamente = true
 
-HypeHubTab:CreateSection("Auto Revistar")
-HypeHubTab:CreateToggle({
-    Name = "Ativar Auto Revistar",
-    CurrentValue = false,
-    Flag = "autorsv",
-    Callback = function(Value)
-        autoRevistarAtivo = Value
-        if autoRevistarAtivo then
-            autoRevTask = task.spawn(function()
-                while autoRevistarAtivo do
-                    game:GetService("ReplicatedStorage").RemoteNovos.bixobrabo:FireServer("revistar")
-                    task.wait(2)
+-- Função de revistar
+local function revistar(player)
+    local args = {
+        [1] = player
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("SearchPlayer"):FireServer(unpack(args))
+end
+
+-- Loop principal
+RunService.RenderStepped:Connect(function()
+    if AutoRevistarAtivo and podeRevistarNovamente then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                local distancia = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+
+                if humanoid.Health <= 0 and distancia <= distanciaMaxima then
+                    podeRevistarNovamente = false
+
+                    -- Revistar duas vezes com intervalo de 1 segundo
+                    revistar(player)
+                    task.wait(1)
+                    revistar(player)
+
+                    -- Espera 5 segundos antes de poder revistar novamente
+                    task.wait(5)
+                    podeRevistarNovamente = true
+                    break
                 end
-            end)
-        else
-            if autoRevTask then
-                task.cancel(autoRevTask)
-                autoRevTask = nil
             end
         end
-    end,
-})
+    end
+end)
 
-HypeHubTab:CreateSection("Itens dos Jogadores")
 HypeHubTab:CreateToggle({
-    Name = "Ver itens UI",
+    Name = "Auto Revistar Mortos",
     CurrentValue = false,
-    Flag = "veritensui",
+    Flag = "AutoRevistar",
     Callback = function(Value)
-        verItensUIAtivo = Value
-        if Value then
-            aplicarVerItensUI()
-        else
-            removerVerItensUI()
-        end
+        AutoRevistarAtivo = Value
     end,
 })
 
@@ -1345,64 +1515,134 @@ HypeHubTab:CreateButton({
    end,
 })
 
--- HITBOX
+-- HITBOX (Cabeça)
 local HitboxSection = Tab:CreateSection("Hitbox")
 
-local tamanhosOriginal = {}
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-local function setHitbox(player, size)
-    if not player or not player.Character or not player.Character:FindFirstChild("Head") then return end
-    local head = player.Character.Head
-    if not tamanhosOriginal[player] then
-        tamanhosOriginal[player] = head.Size
-    end
-    head.Size = size
-end
-
-local function resetHitbox(player)
-    if not player or not player.Character or not player.Character:FindFirstChild("Head") then return end
-    local head = player.Character.Head
-    if tamanhosOriginal[player] then
-        head.Size = tamanhosOriginal[player]
-    end
-end
-
+local tamanhosOriginais = {}
 local hitboxEnabled = false
+local hitboxTamanho = Vector3.new(5, 5, 5)
+local hitboxCor = Color3.fromRGB(255, 0, 0)
 local hitboxConnection
 
+-- Aplica a hitbox na cabeça do jogador
+local function aplicarHitbox(jogador)
+    if jogador == LocalPlayer then return end
+    local character = jogador.Character
+    if character and character:FindFirstChild("Head") then
+        local head = character.Head
+        if not tamanhosOriginais[jogador] then
+            tamanhosOriginais[jogador] = head.Size
+        end
+        head.Size = hitboxTamanho
+        head.Material = Enum.Material.Neon
+        head.Transparency = 0.3
+        head.Color = hitboxCor
+        head.CanCollide = false
+    end
+end
+
+-- Reseta a cabeça do jogador
+local function resetarHitbox(jogador)
+    local character = jogador.Character
+    if character and character:FindFirstChild("Head") and tamanhosOriginais[jogador] then
+        local head = character.Head
+        head.Size = tamanhosOriginais[jogador]
+        head.Material = Enum.Material.Plastic
+        head.Transparency = 0
+        head.Color = Color3.fromRGB(255, 255, 255)
+        head.CanCollide = true
+    end
+end
+
+-- Aplica a todos os jogadores existentes
+local function aplicarParaTodos()
+    for _, jogador in pairs(Players:GetPlayers()) do
+        if jogador ~= LocalPlayer then
+            aplicarHitbox(jogador)
+        end
+    end
+end
+
+-- Ativa/desativa a hitbox
 local function toggleHitbox(habilitado)
     hitboxEnabled = habilitado
     if habilitado then
-        hitboxConnection = game:GetService("RunService").RenderStepped:Connect(function()
-            for _, jogador in pairs(game:GetService("Players"):GetPlayers()) do
-                if jogador ~= Player and jogador.Character and jogador.Character:FindFirstChild("Head") then
-                    setHitbox(jogador, Vector3.new(5, 5, 5)) -- Tamanho expandido da cabeça
-                end
-            end
+        aplicarParaTodos()
+
+        hitboxConnection = RunService.RenderStepped:Connect(function()
+            aplicarParaTodos()
         end)
+
+        -- Monitorar novos jogadores e personagens
+        Players.PlayerAdded:Connect(function(jogador)
+            jogador.CharacterAdded:Connect(function()
+                wait(1)
+                if hitboxEnabled then
+                    aplicarHitbox(jogador)
+                end
+            end)
+        end)
+
+        for _, jogador in pairs(Players:GetPlayers()) do
+            jogador.CharacterAdded:Connect(function()
+                wait(1)
+                if hitboxEnabled then
+                    aplicarHitbox(jogador)
+                end
+            end)
+        end
     else
         if hitboxConnection then
             hitboxConnection:Disconnect()
             hitboxConnection = nil
         end
-        for _, jogador in pairs(game:GetService("Players"):GetPlayers()) do
-            if jogador ~= Player then
-                resetHitbox(jogador)
+        for _, jogador in pairs(Players:GetPlayers()) do
+            if jogador ~= LocalPlayer then
+                resetarHitbox(jogador)
             end
         end
-        tamanhosOriginal = {}
+        tamanhosOriginais = {}
     end
 end
 
+-- Toggle principal
 Tab:CreateToggle({
     Name = "Expansor de Hitbox",
-    Description = "Aumenta o tamanho da cabeça dos outros jogadores.",
+    Description = "Aumenta o tamanho da cabeça dos jogadores.",
     CurrentValue = false,
     Section = HitboxSection,
     Callback = function(Value)
         toggleHitbox(Value)
     end
 })
+
+-- Slider para tamanho
+Tab:CreateSlider({
+    Name = "Tamanho da HitbOx",
+    Range = {2, 20},
+    Increment = 1,
+    Suffix = "🤓",
+    CurrentValue = 5,
+    Section = HitboxSection,
+    Callback = function(Value)
+        hitboxTamanho = Vector3.new(Value, Value, Value)
+    end
+})
+
+-- Color Picker
+Tab:CreateColorPicker({
+    Name = "Cor da hitbox",
+    Color = Color3.fromRGB(255, 0, 0),
+    Section = HitboxSection,
+    Callback = function(Value)
+        hitboxCor = Value
+    end
+})
+
 
 -- TELEPORTES
 TeleportTab:CreateParagraph({Title = "Hype HUB", Content = "por th"})
@@ -1440,72 +1680,122 @@ addTeleportButton("Teletransporte ilegal", CFrame.new(12036.2324, 50.6911, 12830
 addTeleportButton("Teleportar Prédio 1", CFrame.new(-1595.23328, 204.074341, 555.895386))
 addTeleportButton("Teletransporte Devs Mini",CFrame.new(-291.579559, 3.26299787, 342.192535))
 
-
 -- Seção Hitbox
-local HitboxSection = Tab:CreateSection("Hitbox (PC e Mobile)") -- Use Tab instead of MainTab
+local HitboxSection = Tab:CreateSection("Hitbox (PC e Mobile)")
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
 local hitboxEnabled = false
-local originalSizes = {}
+local hitboxSize = Vector3.new(7, 7, 7)
+local hitboxColor = Color3.fromRGB(255, 0, 0)
+local adornments = {}
 
-local function setHitbox(targetPlayer, size)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-        local head = targetPlayer.Character.Head
-        if not originalSizes[targetPlayer] then
-            originalSizes[targetPlayer] = head.Size
-        end
-        head.Size = size
-        head.Transparency = 0.7
-        head.Material = Enum.Material.Neon
-        head.Color = Color3.fromRGB(255, 0, 0)
-        head.CanCollide = false
-    end
+local function createAdornment(hrp, player)
+	if adornments[player] then
+		adornments[player]:Destroy()
+	end
+
+	local adorn = Instance.new("BoxHandleAdornment")
+	adorn.Name = "HitboxAdornment"
+	adorn.Adornee = hrp
+	adorn.AlwaysOnTop = true
+	adorn.ZIndex = 5
+	adorn.Size = hitboxSize
+	adorn.Color3 = hitboxColor
+	adorn.Transparency = 0.3
+	adorn.Parent = hrp
+	adornments[player] = adorn
 end
 
-local function resetHitbox(targetPlayer)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") and originalSizes[targetPlayer] then
-        local head = targetPlayer.Character.Head
-        head.Size = originalSizes[targetPlayer]
-        head.Transparency = 0
-        head.Material = Enum.Material.Plastic
-        head.Color = Color3.fromRGB(255, 255, 255)
-        head.CanCollide = true
-    end
+local function applyHitbox(player)
+	if player == LocalPlayer then return end
+	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		createAdornment(player.Character.HumanoidRootPart, player)
+	end
 end
 
-local hitboxConnection
-
-local function toggleHitbox(enabled)
-    hitboxEnabled = enabled
-    if enabled then
-        hitboxConnection = game:GetService("RunService").RenderStepped:Connect(function()
-            for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                if player ~= Player then
-                    setHitbox(player, Vector3.new(5, 5, 5)) -- Tamanho expandido da Head
-                end
-            end
-        end)
-    else
-        if hitboxConnection then
-            hitboxConnection:Disconnect()
-            hitboxConnection = nil
-        end
-        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-            if player ~= Player then
-                resetHitbox(player)
-            end
-        end
-        originalSizes = {}
-    end
+local function onCharacterAdded(player, character)
+	if not hitboxEnabled or player == LocalPlayer then return end
+	character:WaitForChild("HumanoidRootPart", 5)
+	applyHitbox(player)
 end
 
+local function onPlayerAdded(player)
+	player.CharacterAdded:Connect(function(char)
+		onCharacterAdded(player, char)
+	end)
+
+	if player.Character then
+		onCharacterAdded(player, player.Character)
+	end
+end
+
+local function clearHitboxes()
+	for player, adorn in pairs(adornments) do
+		if adorn and adorn.Parent then
+			adorn:Destroy()
+		end
+	end
+	adornments = {}
+end
+
+local function toggleHitbox(state)
+	hitboxEnabled = state
+	if state then
+		for _, player in ipairs(Players:GetPlayers()) do
+			onPlayerAdded(player)
+		end
+
+		Players.PlayerAdded:Connect(onPlayerAdded)
+	else
+		clearHitboxes()
+	end
+end
+
+-- Toggle
 Tab:CreateToggle({
-    Name = "Hitbox Expander",
-    Description = "Aumenta o tamanho da cabeça dos outros jogadores.",
-    CurrentValue = false,
-    Section = HitboxSection,
-    Callback = function(Value)
-        toggleHitbox(Value)
-    end
+	Name = "Hitbox Expander",
+	Description = "Adiciona uma hitbox quadrada visível no corpo dos jogadores.",
+	CurrentValue = false,
+	Section = HitboxSection,
+	Callback = function(Value)
+		toggleHitbox(Value)
+	end
+})
+
+-- Slider para tamanho
+Tab:CreateSlider({
+	Name = "Tamanho da Hitbox",
+	Range = {3, 15},
+	Increment = 1,
+	Suffix = "u",
+	CurrentValue = 7,
+	Section = HitboxSection,
+	Callback = function(Value)
+		hitboxSize = Vector3.new(Value, Value, Value)
+		for player, adorn in pairs(adornments) do
+			if adorn then
+				adorn.Size = hitboxSize
+			end
+		end
+	end
+})
+
+-- Color Picker
+Tab:CreateColorPicker({
+	Name = "Cor da Hitbox",
+	Color = Color3.fromRGB(255, 0, 0),
+	Section = HitboxSection,
+	Callback = function(Value)
+		hitboxColor = Value
+		for player, adorn in pairs(adornments) do
+			if adorn then
+				adorn.Color3 = hitboxColor
+			end
+		end
+	end
 })
 
 -- CONFIG TAB
